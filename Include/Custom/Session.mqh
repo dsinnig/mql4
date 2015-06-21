@@ -25,6 +25,7 @@ public:
    datetime getLowestLowTime() const;
    double getATR() const;
    int getID() const;
+   bool tradingAllowed() const;
       
 private: 
    int sessionID;
@@ -38,7 +39,7 @@ private:
    datetime dateOfLowestLow;
    double atr;
    int HHLL_Threshold;
-   bool isTadingAllowed;
+   bool isTradingAllowed;
 };
 
 
@@ -51,7 +52,7 @@ Session::Session (int aSessionID, string aSessionName, datetime aSessionStartDat
       this.sessionStartDateTime = aSessionStartDateTime;
       this.sessionEndDateTime = aSessionEndDateTime;
       this.HHLL_ReferenceDateTime = aHHLL_ReferenceDateTime;
-      this.isTadingAllowed = tradingFlag;
+      this.isTradingAllowed = tradingFlag;
       this.HHLL_Threshold = aHHLLThreshold;
       this.highestHigh = -1;
       this.lowestLow = 9999999999;
@@ -69,7 +70,7 @@ void Session::initialize() {
    this.dateOfLowestLow = 0;
    this.atr = 0;
    
-   if (this.isTadingAllowed) {
+   if (this.isTradingAllowed) {
       int indexOfReferenceStart = iBarShift(Symbol(), PERIOD_H1, this.HHLL_ReferenceDateTime, true);
 
       if (indexOfReferenceStart == -1) {
@@ -124,7 +125,7 @@ void Session::initialize() {
 }
 
 int Session::update(double price) {
-   if (this.isTadingAllowed) {
+   if (this.isTradingAllowed) {
       if (price > this.highestHigh) {
          bool validHighestHigh = false;
          if ((TimeCurrent() - this.dateOfHighestHigh) > (100 * 60)) {
@@ -187,4 +188,8 @@ double Session::getATR() const {
 
 int Session::getID() const {
    return this.sessionID;
+}
+
+bool Session::tradingAllowed() const {
+   return this.isTradingAllowed;
 }
