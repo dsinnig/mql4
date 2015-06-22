@@ -92,7 +92,7 @@ void Session::initialize() {
       this.dateOfLowestLow = iTime(Symbol(), PERIOD_H1, indexOfLowestLow);
    
       //check if new High / Low happened in last 100 minutes - if yes update dateOfLowestLow / dateOfHighestHigh with accurate timestamp
-      int i = 100; //paratrize
+      int i = HHLL_Threshold; //paratrize
       while (i > 0) {
          if (Low[i] == lowestLow) {
             dateOfLowestLow = Time[i];
@@ -128,7 +128,7 @@ int Session::update(double price) {
    if (this.isTradingAllowed) {
       if (price > this.highestHigh) {
          bool validHighestHigh = false;
-         if ((TimeCurrent() - this.dateOfHighestHigh) > (100 * 60)) {
+         if ((TimeCurrent() - this.dateOfHighestHigh) > (HHLL_Threshold * 60)) {
             validHighestHigh = true;
          }
          this.highestHigh = price;
@@ -138,7 +138,7 @@ int Session::update(double price) {
       
       if (price < this.lowestLow) {
          bool validLowestLow = false;
-         if ((TimeCurrent() - this.dateOfLowestLow) > (100 * 60)) {
+         if ((TimeCurrent() - this.dateOfLowestLow) > (HHLL_Threshold * 60)) {
             validLowestLow = true;
          }
          this.lowestLow = price;

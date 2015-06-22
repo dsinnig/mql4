@@ -16,8 +16,13 @@ Session *currSession;
 input int sundayLengthInHours=7; //Length of Sunday session in hours
 input int HHLL_Threshold=100; //Time in minutes after last HH / LL before a tradeable HH/LL can occur
 input int lengthOfGracePeriod=10; //Length in 1M bars of Grace Period after a tradeable HH/LL occured
-input double maxATRPercentageForStopOrder=10; //Percentage of ATR for Buy Stop Entry Order
+input double maxATRPercentageForStopOrder=10; //Percentage of ATR for Stop Entry Order
+input double maxATRPercentageForLimitOrder=20; //Percentage of ATR for Limit Entry Order
 input double percentageOfATRForMinProfitTarget=40; //Min Profit Target (Percentage of ATR)
+
+//check for 1M charts
+//check for LimitOrderPercentage > StopOrderPercentage
+
 
 datetime sundayLengthInSeconds=60*60*sundayLengthInHours;
 
@@ -109,7 +114,7 @@ void OnTick()
    if (currSession.tradingAllowed()) {
       if (updateResult == 1) {
          Print("Tradeable Highest High found: ", currSession.getHighestHigh(), " Time: ", currSession.getHighestHighTime());
-         Trade* trade = new Trade(currSession.getATR(), lengthOfGracePeriod, maxATRPercentageForStopOrder, percentageOfATRForMinProfitTarget);
+         Trade* trade = new Trade(currSession.getATR(), lengthOfGracePeriod, maxATRPercentageForStopOrder, maxATRPercentageForLimitOrder, percentageOfATRForMinProfitTarget);
          trade.setState (new HighestHighReceivedWaitingEstablishingTradingChannel(trade));
          addTrade(trade);
      }
@@ -118,7 +123,7 @@ void OnTick()
       if(updateResult==-1) 
         {
          Print("Tradeable Lowest Low found: ",currSession.getLowestLow()," Time: ",currSession.getLowestLowTime());
-         Trade* trade = new Trade(currSession.getATR(), lengthOfGracePeriod, maxATRPercentageForStopOrder, percentageOfATRForMinProfitTarget);
+         Trade* trade = new Trade(currSession.getATR(), lengthOfGracePeriod, maxATRPercentageForStopOrder, maxATRPercentageForLimitOrder, percentageOfATRForMinProfitTarget);
          trade.setState (new LowestLowReceivedWaitingEstablishingTradingChannel(trade));
          addTrade(trade);
         }

@@ -73,8 +73,12 @@ static  Session* SessionFactory::getCurrentSession(datetime aLengthOfSundaySessi
          return currentSession;
       }
       else {
-         currentSession = new Session (-1, "UNKNOWN", 0,0,0,false, 0);
-         return currentSession;
+         if ((SessionFactory::currentSession == NULL) || (SessionFactory::currentSession.getID() != -1)) {
+            delete currentSession;
+            currentSession = new Session (-1, "UNKNOWN", 0,0,0,false, 0);
+            
+         }
+      return currentSession;
       }
 }
    
