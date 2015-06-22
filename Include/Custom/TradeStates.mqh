@@ -11,6 +11,7 @@
 class Trade;
 class StopBuyOrderOpened;
 class TradeClosed;
+class BuyOrderFilled;
 
 enum ErrorType {
    NO_ERROR, 
@@ -20,36 +21,60 @@ enum ErrorType {
 
 class TradeState {
 public: 
-   void update (Trade* context) {
+   TradeState(Trade* aContext) {
+      this.context = aContext;
+   }
+   virtual void update () {
       Print("Abstract method - should never be called");
    }
+protected: 
+   Trade* context;
+
+
 };
 
-class LowestLowReceivedWaiting10MoreBars : public TradeState {
+class LowestLowReceivedWaitingEstablishingTradingChannel : public TradeState {
 public: 
-   LowestLowReceivedWaiting10MoreBars() {
+   LowestLowReceivedWaitingEstablishingTradingChannel(Trade* aContext):TradeState(aContext) {
       this.barsElapsedSinceLowestLow = 0;
       this.entryTime = Time[0];
-      this._10minHigh = -1;
-      this._10minLow = 99999;
+      this.rangeHigh = -1;
+      this.rangeLow = 99999;
+      
+      Print ("ID: ", context.getId(), " Lowest Low Received Waiting For Establishing Trading Channel");
+      
    }
    
-   void update (Trade* context) {
-      if (Close[0] < _10minLow) _10minLow = Close[0];
-      if (Close[0] > _10minHigh) _10minHigh = Close[0];
+   virtual void update () {
+      if (Low[0] < rangeLow) rangeLow = Low[0];
+      if (High[0] > rangeHigh) rangeHigh = High[0];
       
-      if (Time[0] - entryTime >= 60*10) {
-         if ((_10minHigh - _10minLow) > 0.1 * context.getATR()) {
-            context.setState(new TradeClosed());
+      if (Time[0] - entryTime >= 60*(context.getLengthIn1MBarsOfWaitingPeriod() + 1)) {
+         if ((rangeHigh - rangeLow) > ((context.getMaxTollarableATRPercentageForStopOrder() / 100.00) * context.getATR()) ) {
+            //Print ("MaxPer: ", context.getMaxTollarableATRPercentageForStopOrder());
+            Print ("Range high: ", rangeHigh, " Range low: ", rangeLow);
+            string reason = "Range too big for (" + DoubleToStr(rangeHigh - rangeLow) + " - " + IntegerToString ((int) ((rangeHigh - rangeLow) * 100000)) + " micro pips)";
+            
+            
+            context.setState(new TradeClosed(context, reason));
             delete GetPointer(this);
          } 
          else {
-            int ticket = OrderSend(Symbol(), OP_BUYSTOP, 1, _10minHigh + 0.00020, 0, _10minLow - 0.00020, 0, "10% of ATR", 0, 0, clrBlue);
+            Print ("Range high: ", rangeHigh, " Range low: ", rangeLow, " Range: ", int ((rangeHigh - rangeLow) * 100000));
+            //Print ("Trying to open order with: Entry: ", NormalizeDouble(minHigh + 0.00020, Digits), "Stop Loss: ", NormalizeDouble(minLow - 0.00020, Digits));
+            
+            int ticket = OrderSend(Symbol(), OP_BUYSTOP, 1, NormalizeDouble(rangeHigh + 0.00020, Digits), 4, NormalizeDouble(rangeLow - 0.00020, Digits), 0, "BuyStopOrder", 0, 0, clrBlue);
             int result = ErrorManager::analzeAndProcessResult();
             if (result == NO_ERROR) {
-               context.setOrderTicket(result);          
-               context.setState(new StopBuyOrderOpened());
-               Print ("BuyStop order placed @", _10minHigh + 0.00020);
+               context.setOrderTicket(ticket);          
+               context.setStopLoss(NormalizeDouble(rangeLow - 0.00020, Digits));
+               context.setPlannedEntry(NormalizeDouble(rangeHigh + 0.00020, Digits));
+               //Parametrize the 4
+               context.setInitialProfitTarget (NormalizeDouble(context.getPlannedEntry() + ((context.getPlannedEntry() - context.getStopLoss()) * (context.getPercentageOfATRForMinProfitTarget() / 10)), Digits));
+               context.setState(new StopBuyOrderOpened(context, rangeLow));
+               //context.setState(new TradeClosed());
+               
+               Print ("BuyStop order placed @", rangeHigh + 0.00020, " Ticket number: ", ticket);
                delete GetPointer(this);
             }
             if ((result == RETRIABLE_ERROR) && (ticket == -1)) {
@@ -59,13 +84,13 @@ public:
             if ((ticket == -1) && (RETRIABLE_ERROR || NON_RETRIABLE_ERROR)) {
                Print ("Error ocured but order is still open...continue with trade...");
                context.setOrderTicket(result);          
-               context.setState(new StopBuyOrderOpened());
+               context.setState(new StopBuyOrderOpened(context, rangeLow));
                delete GetPointer(this);
             }
             
             if ((result == NON_RETRIABLE_ERROR) && (ticket == -1)) {
                Print ("Close trade");
-               context.setState(new TradeClosed());
+               context.setState(new TradeClosed(context, "Fatal error occured"));
                delete GetPointer(this);
             }
                      
@@ -75,40 +100,496 @@ public:
 private: 
    int barsElapsedSinceLowestLow;
    datetime entryTime;
-   double _10minLow;
-   double _10minHigh;
+   double rangeLow;
+   double rangeHigh;
 };
+
+
+class HighestHighReceivedWaitingEstablishingTradingChannel : public TradeState {
+public: 
+   HighestHighReceivedWaitingEstablishingTradingChannel(Trade* aContext):TradeState(aContext) {
+      this.barsElapsedSinceLowestLow = 0;
+      this.entryTime = Time[0];
+      this.rangeHigh = -1;
+      this.rangeLow = 99999;
+      
+      Print ("ID: ", context.getId(), " Highest High Received Waiting For Establishing Trading Channel");
+      
+   }
+   
+   virtual void update () {
+      if (Low[0] < rangeLow) rangeLow = Low[0];
+      if (High[0] > rangeHigh) rangeHigh = High[0];
+      
+      if (Time[0] - entryTime >= 60*(context.getLengthIn1MBarsOfWaitingPeriod() + 1)) {
+         if ((rangeHigh - rangeLow) > ((context.getMaxTollarableATRPercentageForStopOrder() / 100.00) * context.getATR()) ) {
+            //Print ("MaxPer: ", context.getMaxTollarableATRPercentageForStopOrder());
+            Print ("Range high: ", rangeHigh, " Range low: ", rangeLow);
+            string reason = "Range too big (" + DoubleToStr(rangeHigh - rangeLow) + " - " + IntegerToString ((int) ((rangeHigh - rangeLow) * 100000)) + " micro pips)";
+            
+            
+            context.setState(new TradeClosed(context, reason));
+            delete GetPointer(this);
+         } 
+         else {
+            Print ("Range high: ", rangeHigh, " Range low: ", rangeLow, " Range: ", int ((rangeHigh - rangeLow) * 100000));
+            //Print ("Trying to open order with: Entry: ", NormalizeDouble(minHigh + 0.00020, Digits), "Stop Loss: ", NormalizeDouble(minLow - 0.00020, Digits));
+            
+            int ticket = OrderSend(Symbol(), OP_SELLSTOP, 1, NormalizeDouble(rangeLow - 0.00020, Digits), 4, NormalizeDouble(rangeHigh + 0.00020, Digits), 0, "SellStopOrder", 0, 0, clrBlue);
+            int result = ErrorManager::analzeAndProcessResult();
+            if (result == NO_ERROR) {
+               context.setOrderTicket(ticket);          
+               context.setStopLoss(NormalizeDouble(rangeHigh + 0.00020, Digits));
+               context.setPlannedEntry(NormalizeDouble(rangeLow - 0.00020, Digits));
+               //Parametrize the 4
+               context.setInitialProfitTarget (NormalizeDouble(context.getPlannedEntry() - ((context.getStopLoss() - context.getPlannedEntry()) * (context.getPercentageOfATRForMinProfitTarget() / 10)), Digits));
+               context.setState(new StopSellOrderOpened(context, rangeHigh));
+               //context.setState(new TradeClosed());
+               
+               Print ("SellStop order placed @", rangeLow - 0.00020, " Ticket number: ", ticket);
+               delete GetPointer(this);
+            }
+            if ((result == RETRIABLE_ERROR) && (ticket == -1)) {
+               Print ("Retrying...");
+            }
+            
+            if ((ticket == -1) && (RETRIABLE_ERROR || NON_RETRIABLE_ERROR)) {
+               Print ("Error ocured but order is still open...continue with trade...");
+               context.setOrderTicket(result);          
+               context.setState(new StopBuyOrderOpened(context, rangeLow));
+               delete GetPointer(this);
+            }
+            
+            if ((result == NON_RETRIABLE_ERROR) && (ticket == -1)) {
+               Print ("Close trade");
+               context.setState(new TradeClosed(context, "Fatal error occured"));
+               delete GetPointer(this);
+            }
+                     
+         }
+      }
+   }
+private: 
+   int barsElapsedSinceLowestLow;
+   datetime entryTime;
+   double rangeLow;
+   double rangeHigh;
+};
+
+class StopSellOrderOpened : public TradeState {
+public: 
+   StopSellOrderOpened(Trade* aContext, double aCancelLevel):TradeState(aContext) {
+      this.cancelLevel = aCancelLevel;   
+      Print("ID: ", context.getId(), " Stop Order Placed");
+   }
+   virtual void update() {
+   
+      if (Bid >= cancelLevel) {
+         bool result = OrderDelete(context.getOrderTicket(),clrRed);
+         ErrorManager::analzeAndProcessResult();
+         //error checks missing
+         context.setState(new TradeClosed(context, "Price went above 10min low"));
+         delete GetPointer(this);
+         return;
+                   
+      }
+      
+      
+      if (OrderSelect(context.getOrderTicket(), SELECT_BY_TICKET, MODE_TRADES)) {
+         if (OrderType() == OP_SELL) {
+            context.setActualEntry(OrderOpenPrice());
+            context.setState(new SellOrderFilledProfitTargetNotReached(context));
+            delete GetPointer(this);
+            return;
+         }
+      }
+           
+   }
+private: 
+   double cancelLevel;
+};
+
 
 class TradeClosed : public TradeState {
 public:    
-   void update (Trade* context) {
-   //don't do anything    
+   TradeClosed(Trade* aContext, string aReason):TradeState(aContext) {
+      this.reason = aReason;
+      Print("ID: ", context.getId(), "Trade closed. Reason: ", reason);
    }
+   virtual void update () {
+      if (OrderSelect(context.getOrderTicket(), SELECT_BY_TICKET, MODE_TRADES)) {
+         if (OrderType() == OP_BUY) {
+            //int result = OrderClose(context.getOrderTicket(), 1, Ask - 0.00020, 10, clrRed);
+            ErrorManager::analzeAndProcessResult();
+         }
+         if (OrderType() == OP_SELL) {
+            //int result = OrderClose(context.getOrderTicket(), 1, Bid + 0.00020, 10, clrRed);
+            ErrorManager::analzeAndProcessResult();
+         }
+         if ((OrderType() == OP_BUYLIMIT) || (OrderType() == OP_BUYSTOP) || (OrderType() == OP_SELLLIMIT) || (OrderType() == OP_SELLSTOP)) {
+            //bool result = OrderDelete(context.getOrderTicket(),clrRed);
+            ErrorManager::analzeAndProcessResult();       
+         }  
+       }
+   }
+   private: 
+      string reason;
 };
 
 
 class StopBuyOrderOpened : public TradeState {
 public: 
-   void update(Trade* context) {
-      //check if filled
+   StopBuyOrderOpened(Trade* aContext, double aCancelLevel):TradeState(aContext) {
+      this.cancelLevel = aCancelLevel;   
+      Print("ID: ", context.getId(), " Stop Order Placed");
+   }
+   virtual void update() {
+   
+      if (Ask <= cancelLevel) {
+         bool result = OrderDelete(context.getOrderTicket(),clrRed);
+         ErrorManager::analzeAndProcessResult();
+         //error checks missing
+         context.setState(new TradeClosed(context, "Price went below 10min low"));
+         delete GetPointer(this);
+         return;
+                   
+      }
       
       
+      if (OrderSelect(context.getOrderTicket(), SELECT_BY_TICKET, MODE_TRADES)) {
+         if (OrderType() == OP_BUY) {
+            context.setActualEntry(OrderOpenPrice());
+            context.setState(new BuyOrderFilledProfitTargetNotReached(context));
+            delete GetPointer(this);
+            return;
+         }
+      }
       
+   
+            
+   }
+private: 
+   double cancelLevel;
+};
+
+class BuyOrderFilledProfitTargetNotReached : public TradeState {
+public: 
+   BuyOrderFilledProfitTargetNotReached(Trade* aContext):TradeState(aContext){
+      Print("ID: ",context.getId(), " Order filled");
+      Print("ID: ", context.getId(), " Planned entry: ", context.getPlannedEntry(), " Actual entry: ", context.getActualEntry(), " Stop loss: ", context.getStopLoss(), " Min profit target: ", context.getInitialProfitTarget());
+   };
+   virtual void update() {
+      if (Bid > context.getInitialProfitTarget()) {
+         context.setState(new ProfitTargetReachedLookForInitialHighestHigh(context, TimeCurrent()));
+         delete GetPointer(this);   
+      }   
    }
 
+};
+
+class SellOrderFilledProfitTargetNotReached : public TradeState {
+public: 
+   SellOrderFilledProfitTargetNotReached(Trade* aContext):TradeState(aContext){
+      Print("ID: ",context.getId(), " Order filled");
+      Print("ID: ", context.getId(), " Planned entry: ", context.getPlannedEntry(), " Actual entry: ", context.getActualEntry(), " Stop loss: ", context.getStopLoss(), " Min profit target: ", context.getInitialProfitTarget());
+   };
+   virtual void update() {
+      if (Ask < context.getInitialProfitTarget()) {
+         context.setState(new ProfitTargetReachedLookForInitialLowestLow(context, TimeCurrent()));
+         delete GetPointer(this);   
+      }   
+   }
+};
+
+
+class ProfitTargetReachedLookForInitialLowestLow : public TradeState {
+public: 
+   ProfitTargetReachedLookForInitialLowestLow(Trade* aContext, datetime _timeWhenProfitTargetWasReached):TradeState(aContext){
+      Print("ID: ",context.getId(), " Profit target reached - looking for initial lowest low", " Time: ", TimeCurrent());
+      currentLL = 99999;
+      this.timeWhenProfitTargetWasReached = _timeWhenProfitTargetWasReached;
+      
+   };
+   virtual void update() {
+      //check if order closed
+      bool rs = OrderSelect(context.getOrderTicket(),SELECT_BY_TICKET);
+      if (!rs) {
+         Print ("Order not found");
+         return;
+      } 
+      if (OrderCloseTime() != 0) {
+         context.setState(new TradeClosed(context, "Stop loss triggered"));
+         delete GetPointer(this);
+         return;
+      }
+      
+      //order still open...
+      
+      //if still in same bar that made the profit target -> wait for next bar. 
+      if ((TimeMinute(TimeCurrent()) == TimeMinute(timeWhenProfitTargetWasReached)) &&
+          (TimeHour(TimeCurrent()) == TimeHour(timeWhenProfitTargetWasReached)) &&
+          (TimeDay(TimeCurrent()) == TimeDay(timeWhenProfitTargetWasReached))){return;}
+      
+      if (isNewBar()) {
+         if (currentLL == 99999) {
+            currentLL = Low[1];
+            barStartTimeOfCurrentLL = Time[1]; 
+            Print("ID: ", context.getId(), " Initial low established at: ", currentLL, " Bar start: ", barStartTimeOfCurrentLL, " Time: ", TimeCurrent());
+         }
+      
+         if (currentLL != 99999) {
+            if (Low[1] < currentLL) {
+               //save info rel. to previous HH
+               double previousLL = currentLL;
+               datetime barStartTimeOfPreviousLL = barStartTimeOfCurrentLL;
+               //set new info
+               currentLL = Low[1];
+               barStartTimeOfCurrentLL = Time[1];
+            
+               Print("ID: ", context.getId(), " Found new low at: ", currentLL, " Time: ", barStartTimeOfCurrentLL);
+            
+               //look if stop loss can be adjusted
+               int shiftOfPreviousLL = iBarShift(Symbol(), PERIOD_M1, barStartTimeOfPreviousLL, true); 
+               if (shiftOfPreviousLL == -1) {
+                  Print("Could not fine start time of previous LL"); 
+                  return;   
+               }
+               int i = shiftOfPreviousLL-1; //exclude bar that made the previous HH
+               bool upBarFound = false;
+               double high = -1;
+               while (i > 1) {
+                  if (Open[i] < Close[i]) upBarFound = true;
+                  if (High[i] > high) high = High[i];
+                  i--;
+               }
+               if (!upBarFound || (high == -1)) {
+                  Print ("Coninuation bar - Do not adjust stop loss");
+                  return;
+               }
+               
+               
+               
+               if (high != -1) {
+                  Print ("High point between lows is: ", high);
+               }
+               
+               if (upBarFound && (high + 0.00020 < context.getInitialProfitTarget()) && (high +0.00020 < context.getStopLoss())) {
+                  //adjust stop loss
+                  bool orderSelectResult = OrderSelect(context.getOrderTicket(),SELECT_BY_TICKET);
+                  if (!orderSelectResult) {
+                     Print ("Order not found");
+                     return;
+                  } 
+                  bool res = OrderModify(OrderTicket(), OrderOpenPrice(), NormalizeDouble(high+0.00020, Digits), 0, clrBlue);
+                  int result = ErrorManager::analzeAndProcessResult();
+                  if (result == NO_ERROR) {
+                     context.setStopLoss(NormalizeDouble(high+0.00020, Digits));
+                     Print ("ID: ", context.getId(), "Stop loss adjusted to: :", NormalizeDouble(high+0.00020, Digits));
+                  }
+               }
+               
+               if (high + 0.00020 >= context.getInitialProfitTarget()) {
+                  Print ("High + 20 micro pips: ", high + 0.00020, " is above initial profit target of: ", context.getInitialProfitTarget(), " Do not adjust stop loss");
+                  return;
+               }
+               
+               if (high + 0.00020 > context.getStopLoss()) {
+                  Print ("High + 20 micro pips: ", high + 0.00020, " is above previous stop loss: ", context.getStopLoss(), " Do not adjust stop loss");
+                  return;
+               }
+            }         
+         } 
+      }          
+   }
+   
+   
+   
+private:
+   private: 
+   datetime barStartTimeOfCurrentLL;
+   double currentLL;
+   datetime timeWhenProfitTargetWasReached;
+   
+   
+   bool isNewBar()
+      {
+         static datetime lastbar = 0;
+         datetime curbar = Time[0];
+         if(lastbar!=curbar)
+         {
+            lastbar=curbar;
+            return (true);
+         }
+         else
+         {
+            return(false);
+         }
+      }
+};
+
+
+class ProfitTargetReachedLookForInitialHighestHigh : public TradeState {
+public: 
+   ProfitTargetReachedLookForInitialHighestHigh(Trade* aContext, datetime _timeWhenProfitTargetWasReached):TradeState(aContext){
+      Print("ID: ",context.getId(), " Profit target reached - looking for initial highest high", " Time: ", TimeCurrent());
+      currentHH = 0;
+      this.timeWhenProfitTargetWasReached = _timeWhenProfitTargetWasReached;
+      
+   };
+   virtual void update() {
+      //check if order closed
+      bool rs = OrderSelect(context.getOrderTicket(),SELECT_BY_TICKET);
+      if (!rs) {
+         Print ("Order not found");
+         return;
+      } 
+      if (OrderCloseTime() != 0) {
+         context.setState(new TradeClosed(context, "Stop loss triggered"));
+         delete GetPointer(this);
+         return;
+      }
+      
+      //order still open...
+      
+      //if still in the same minute that reached the target -> wait for next bar
+      if ((TimeMinute(TimeCurrent()) == TimeMinute(timeWhenProfitTargetWasReached)) &&
+          (TimeHour(TimeCurrent()) == TimeHour(timeWhenProfitTargetWasReached)) &&
+          (TimeDay(TimeCurrent()) == TimeDay(timeWhenProfitTargetWasReached))){return;}
+      
+      if (isNewBar()) {
+         if (currentHH == 0) {
+            currentHH = High[1];
+            barStartTimeOfCurrentHH = Time[1]; 
+            Print("ID: ", context.getId(), " Initial high established at: ", currentHH, " Bar start: ", barStartTimeOfCurrentHH, " Time: ", TimeCurrent());
+         }
+      
+         if (currentHH != 0) {
+            if (High[1] > currentHH) {
+               //save info rel. to previous HH
+               double previousHH = currentHH;
+               datetime barStartTimeOfPreviousHH = barStartTimeOfCurrentHH;
+               //set new info
+               currentHH = High[1];
+               barStartTimeOfCurrentHH = Time[1];
+            
+               Print("ID: ", context.getId(), " Found new high at: ", currentHH, " Time: ", barStartTimeOfCurrentHH);
+            
+               //look if stop loss can be adjusted
+               int shiftOfPreviousHH = iBarShift(Symbol(), PERIOD_M1, barStartTimeOfPreviousHH, true); 
+               if (shiftOfPreviousHH == -1) {
+                  Print("Could not fine start time of previous HH"); 
+                  return;   
+               }
+               int i = shiftOfPreviousHH-1; //exclude bar that made the previous HH
+               bool downBarFound = false;
+               double low = 99999;
+               while (i > 1) {
+                  if (Open[i] > Close[i]) downBarFound = true;
+                  if (Low[i] < low) low = Low[i];
+                  i--;
+               }
+               if (!downBarFound || (low == 99999)) {
+                  Print ("Coninuation bar - Do not adjust stop loss");
+                  return;
+               }
+               
+               
+               
+               if (low != 99999) {
+                  Print ("Low point between highs is: ", low);
+               }
+               
+               //factor in 20 micropips
+               if (downBarFound && (low - 0.00020 > context.getInitialProfitTarget()) && (low -0.00020 > context.getStopLoss())) {
+                  //adjust stop loss
+                  bool orderSelectResult = OrderSelect(context.getOrderTicket(),SELECT_BY_TICKET);
+                  if (!orderSelectResult) {
+                     Print ("Order not found");
+                     return;
+                  } 
+                  bool res = OrderModify(OrderTicket(), OrderOpenPrice(), NormalizeDouble(low-0.00020, Digits), 0, clrBlue);
+                  int result = ErrorManager::analzeAndProcessResult();
+                  if (result == NO_ERROR) {
+                     context.setStopLoss(NormalizeDouble(low-0.00020, Digits));
+                     Print ("ID: ", context.getId(), "Stop loss adjusted to: :", NormalizeDouble(low-0.00020, Digits));
+                  }
+               }
+               
+               if (low - 0.00020 <= context.getInitialProfitTarget()) {
+                  Print ("Low - 20 micro pips: ", low - 0.00020, " is below initial profit target of: ", context.getInitialProfitTarget(), " Do not adjust stop loss");
+                  return;
+               }
+               
+               if (low -0.00020 < context.getStopLoss()) {
+                  Print ("Low - 20 micro pips: ", low - 0.00020, " is below previous stop loss: ", context.getStopLoss(), " Do not adjust stop loss");
+                  return;
+               }
+            }         
+         } 
+      }          
+   }
+   
+   
+   
+private:
+   private: 
+   datetime barStartTimeOfCurrentHH;
+   double currentHH;
+   
+   datetime timeWhenProfitTargetWasReached;
+   
+   
+   bool isNewBar()
+      {
+         static datetime lastbar = 0;
+         datetime curbar = Time[0];
+         if(lastbar!=curbar)
+         {
+            lastbar=curbar;
+            return (true);
+         }
+         else
+         {
+            return(false);
+         }
+      }
 };
 
 
 class Trade {
 public: 
-   Trade(TradeState* initialState, double anATR) {
-      this.state = initialState;
+   Trade(double anATR, int _lengthIn1MBarsOfWaitingPeriod, double _maxTollarableATRPercentageForStopOrder, double _maxTollarableATRPercentageForLimitOrder, double _percentageOfATRForMinProfitTarget) {
+      this.state = NULL;
       this.orderTicket = -1;
       this.atr = anATR;
+      this.actualEntry = -1;
+      this.initialProfitTarget = -1;
+      this.plannedEntry = -1;
+      this.stopLoss = -1;
+      
+      
+     this.lengthIn1MBarsOfWaitingPeriod = _lengthIn1MBarsOfWaitingPeriod;
+     this.percentageOfATRForMinProfitTarget = _percentageOfATRForMinProfitTarget;
+     this.maxTollarableATRPercentageForStopOrder = _maxTollarableATRPercentageForStopOrder;
+     this.maxTollarableATRPercentageForLimitOrder = _maxTollarableATRPercentageForLimitOrder;
+     
+      this.id = IntegerToString(TimeYear(TimeCurrent())) + 
+                IntegerToString(TimeMonth(TimeCurrent())) + 
+                IntegerToString(TimeDay(TimeCurrent())) + 
+                IntegerToString(TimeHour(TimeCurrent())) + 
+                IntegerToString(TimeMinute(TimeCurrent())) + 
+                IntegerToString(TimeSeconds(TimeCurrent()));
+      
+      //this.id = TimeToStr(TimeCurrent(), TIME_DATE|TIME_MINUTES|TIME_SECONDS);
+      
+  }
+   ~Trade() {
+      delete state;
    }
    
    void update() {
-      state.update(GetPointer(this));
+      if (state != NULL) 
+         state.update();
    }
    void setState(TradeState* aState) {
       this.state = aState;
@@ -120,11 +601,79 @@ public:
       this.orderTicket = aTicket;
    
    }
+   
+   int getOrderTicket() const {
+      return this.orderTicket;
+   }
+   
+   string getId() const {
+      return id;
+   }
+   
+   void setPlannedEntry(double entry) {
+      this.plannedEntry = entry;
+   }
+   
+   double getPlannedEntry() const {
+      return this.plannedEntry;
+   }
+   
+   void setActualEntry(double entry) {
+      this.actualEntry = entry;
+   }
+   
+   double getActualEntry() const {
+      return this.actualEntry;
+   }
+   
+   void setStopLoss(double sL) {
+      this.stopLoss = sL;
+   }
+   
+   double getStopLoss() const {
+      return this.stopLoss;
+   }
+   
+   void setInitialProfitTarget(double target) {
+      this.initialProfitTarget = target;
+   }
+   
+   double getInitialProfitTarget() const {
+      return this.initialProfitTarget;
+   }
+
+   int getLengthIn1MBarsOfWaitingPeriod() const {
+      return this.lengthIn1MBarsOfWaitingPeriod;
+   }
+   
+   double getMaxTollarableATRPercentageForStopOrder() const {
+      return this.maxTollarableATRPercentageForStopOrder;
+   }
+   
+   double getPercentageOfATRForMinProfitTarget() const {
+      return percentageOfATRForMinProfitTarget;
+   }
+   
+   double getMaxTollarableATRPercentageForLimitOrder() const {
+      return this.maxTollarableATRPercentageForLimitOrder;
+   }
+
 
 private: 
    TradeState* state;
    double atr;
    int orderTicket;
+   string id;
+   double plannedEntry;
+   double actualEntry;
+   double stopLoss;
+   double initialProfitTarget;
+   
+   int lengthIn1MBarsOfWaitingPeriod;
+   double maxTollarableATRPercentageForStopOrder;
+   double percentageOfATRForMinProfitTarget;
+   double maxTollarableATRPercentageForLimitOrder;
+   
 };
 
 
