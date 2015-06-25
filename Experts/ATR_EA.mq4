@@ -8,17 +8,19 @@
 #property version   "1.00"
 #property strict
 
-#include "../Include/Custom/SessionFactory.mqh"
-#include "../Include/Custom/Session.mqh"
-#include "../Include/Custom/TradeStates.mqh"
+#include "../Include/Custom/SessionFactory.mq4"
+#include "../Include/Custom/Session.mq4"
+#include "../Include/Custom/LowestLowReceivedEstablishingEligibilityRange.mq4"
+#include "../Include/Custom/HighestHighReceivedEstablishingEligibilityRange.mq4"
 
 Session *currSession;
 input int sundayLengthInHours=7; //Length of Sunday session in hours
 input int HHLL_Threshold=100; //Time in minutes after last HH / LL before a tradeable HH/LL can occur
 input int lengthOfGracePeriod=10; //Length in 1M bars of Grace Period after a tradeable HH/LL occured
-input double maxATRPercentageForStopOrder=10; //Percentage of ATR for Stop Entry Order
-input double maxATRPercentageForLimitOrder=20; //Percentage of ATR for Limit Entry Order
-input double percentageOfATRForMinProfitTarget=40; //Min Profit Target (Percentage of ATR)
+input double maxRisk=10; //Max risk (in percent of ATR)
+input double maxVolatility=20; //Max volatility (in percent of ATR)
+input double percentageOfATRForMinProfitTarget=40; //Min Profit Target (in percent of ATR)
+input int rangeBuffer=20; //Buffer in micropips for order opening and closing
 
 //check for 1M charts
 //check for LimitOrderPercentage > StopOrderPercentage
@@ -47,13 +49,16 @@ void addTrade(Trade *aTrade)
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
-int OnInit()
-  {
-//--- create timer
-   //EventSetTimer(60);
-   for(int i=0; i<maxNumberOfTrades;++i)
+int OnInit() {
+   
+   //delete log file
+   FileDelete("ATR_EA.log");
+   
+   //initialize trades array
+   for(int i=0; i<maxNumberOfTrades;++i) {
       trades[i]=NULL;
-
+   }
+   
 
 
 //---
@@ -64,9 +69,15 @@ int OnInit()
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason) 
   {
+   //printLog to file
+   for (int i = 0; i < tradesInArray; ++i) {
+         trades[i].writeLogToFile("ATR_EA.log", true);
+         //trades[i].printLog();
+   }
+      
    SessionFactory::cleanup();
 
-   for(int i=0; i<=tradesInArray;++i) 
+   for(int i=0; i<tradesInArray;++i) 
      {
       if(trades[i]!=NULL)
          delete trades[i];
@@ -114,8 +125,8 @@ void OnTick()
    if (currSession.tradingAllowed()) {
       if (updateResult == 1) {
          Print("Tradeable Highest High found: ", currSession.getHighestHigh(), " Time: ", currSession.getHighestHighTime());
-         Trade* trade = new Trade(currSession.getATR(), lengthOfGracePeriod, maxATRPercentageForStopOrder, maxATRPercentageForLimitOrder, percentageOfATRForMinProfitTarget);
-         trade.setState (new HighestHighReceivedWaitingEstablishingTradingChannel(trade));
+         Trade* trade = new ATRTrade(currSession.getATR(), lengthOfGracePeriod, maxRisk, maxVolatility, percentageOfATRForMinProfitTarget, rangeBuffer);
+         trade.setState (new HighestHighReceivedEstablishingEligibilityRange(trade));
          addTrade(trade);
      }
       
@@ -123,8 +134,8 @@ void OnTick()
       if(updateResult==-1) 
         {
          Print("Tradeable Lowest Low found: ",currSession.getLowestLow()," Time: ",currSession.getLowestLowTime());
-         Trade* trade = new Trade(currSession.getATR(), lengthOfGracePeriod, maxATRPercentageForStopOrder, maxATRPercentageForLimitOrder, percentageOfATRForMinProfitTarget);
-         trade.setState (new LowestLowReceivedWaitingEstablishingTradingChannel(trade));
+         Trade* trade = new ATRTrade(currSession.getATR(), lengthOfGracePeriod, maxRisk, maxVolatility, percentageOfATRForMinProfitTarget, rangeBuffer);
+         trade.setState (new LowestLowReceivedEstablishingEligibilityRange(trade));
          addTrade(trade);
         }
    }
