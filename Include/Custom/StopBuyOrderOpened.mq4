@@ -19,21 +19,19 @@
 //+------------------------------------------------------------------+
 class StopBuyOrderOpened : public TradeState {
 public:
-   StopBuyOrderOpened(ATRTrade* aContext, double aCancelLevel);
+   StopBuyOrderOpened(ATRTrade* aContext);
    virtual void update(); 
      
 private:
-   double cancelLevel;
    ATRTrade* context; //hides conext in Trade
 };
 
-StopBuyOrderOpened::StopBuyOrderOpened(ATRTrade* aContext, double aCancelLevel) {
-   this.cancelLevel=aCancelLevel;
+StopBuyOrderOpened::StopBuyOrderOpened(ATRTrade* aContext) {
    this.context = aContext;
 }
 
 void StopBuyOrderOpened::update() {
-   if(Ask<=cancelLevel) {
+   if(Ask<=context.getCancelPrice()) {
       context.addLogEntry("Ask price went below cancel level. Attempting to delete order.", true);
       bool success=OrderDelete(context.getOrderTicket(),clrRed);
       if (success) {

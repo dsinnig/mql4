@@ -40,6 +40,8 @@ HighestHighReceivedEstablishingEligibilityRange::HighestHighReceivedEstablishing
 
 
 void HighestHighReceivedEstablishingEligibilityRange::update()  {
+    double factor = ErrorManager::getPipConversionFactor(); 
+    
     //update range lows and range highs
     if(Low[0]<rangeLow) rangeLow=Low[0];  {
       if(High[0]>rangeHigh) rangeHigh=High[0];
@@ -47,15 +49,15 @@ void HighestHighReceivedEstablishingEligibilityRange::update()  {
 
     //Waiting Period over? (deault is 10mins + 1min)
     if(Time[0]-entryTime>=60*(context.getLengthIn1MBarsOfWaitingPeriod()+1))  {
-         int rangePips = (int)((rangeHigh-rangeLow)*100000); ///Works for 5 Digts pairs. Verify that calculation is valid for 3 Digits pairs
-         int ATRPips = (int) (context.getATR() * 100000); ///Works for 5 Digts pairs. Verify that calculation is valid for 3 Digits pairs
+         int rangePips = (int)((rangeHigh-rangeLow)* factor); 
+         int ATRPips = (int) (context.getATR() * factor); 
          
          context.addLogEntry("Range established at: " + IntegerToString(rangePips) + " micro pips. HH=" + DoubleToString(rangeHigh, Digits) + ", LL=" + DoubleToString(rangeLow, Digits), true);
          
 
          //Range too large for limit or stop order
          if((rangeHigh-rangeLow)>((context.getPercentageOfATRForMaxVolatility()/100.00)*context.getATR()))  {
-            context.addLogEntry("Range (" + IntegerToString(rangePips) + " micro pips) greater than " + DoubleToString(context.getPercentageOfATRForMaxVolatility(), Digits) + "% of ATR (" + IntegerToString(ATRPips) + ")", true);
+            context.addLogEntry("Range (" + IntegerToString(rangePips) + " micro pips) is greater than " + DoubleToString(context.getPercentageOfATRForMaxVolatility(), 2) + "% of ATR (" + IntegerToString(ATRPips) + " micro pips)", true);
             context.setState(new TradeClosed(context));
             delete GetPointer(this);
          }
@@ -65,79 +67,83 @@ void HighestHighReceivedEstablishingEligibilityRange::update()  {
             double cancelPrice = 0.0;
             int orderType = -1;
             TradeState* nextState = NULL;
-            int orderTicket = -1;
-            double buffer = context.getRangeBufferInMicroPips() / 100000.00; ///Works for 5 Digts pairs. Verify that calculation is valid for 3 Digits pairs
+            int positionSize = 0;
+            double buffer = context.getRangeBufferInMicroPips() / factor; ///Works for 5 Digts pairs. Verify that calculation is valid for 3 Digits pairs
             //Range is less than max risk
             if ((rangeHigh-rangeLow)<((context.getPercentageOfATRForMaxRisk()/100.00)*context.getATR())) {
-               entryPrice = NormalizeDouble(rangeLow - buffer, Digits);
-               stopLoss = NormalizeDouble(rangeHigh + buffer, Digits);
+               
+               //write to log
+               context.addLogEntry("Range (" + IntegerToString(rangePips) + " micro pips) is less than max risk " + DoubleToString(context.getPercentageOfATRForMaxRisk(), 2) + "% of ATR (" + IntegerToString(ATRPips) + " micro pips)", true); 
+               
+               entryPrice = rangeLow - buffer;
+               stopLoss = rangeHigh + buffer;
                cancelPrice = rangeHigh;
                orderType = OP_SELLSTOP; 
-               
-               context.addLogEntry("Range (" + IntegerToString(rangePips) + "micropips) is less than max risk (" + DoubleToString(context.getPercentageOfATRForMaxRisk(), Digits) + "% of ATR (" + IntegerToString(ATRPips) + "))", true); 
-               
-               context.addLogEntry("Attempting to place SellStop Order @" + DoubleToString(entryPrice, Digits) + " with stop loss @" + DoubleToString(stopLoss, Digits) + " and cancel price @" + DoubleToString(cancelPrice, Digits), true);
-               nextState = new StopSellOrderOpened(context, cancelPrice);
-             
+               positionSize = 1;
+               nextState = new StopSellOrderOpened(context);
             }
             else 
             //Range is above risk level, but below max volatility level. Current Bid price is less than entry level.  
             if (((rangeHigh-rangeLow)<((context.getPercentageOfATRForMaxVolatility()/100.00)*context.getATR())) && 
-                 (Bid < NormalizeDouble(rangeHigh - context.getATR() * context.getPercentageOfATRForMaxRisk()/100.00 - buffer, Digits))) {
+                 (Bid < rangeHigh - context.getATR() * context.getPercentageOfATRForMaxRisk()/100.00 - buffer)) {
                
-               entryPrice = NormalizeDouble(rangeHigh - context.getATR() * (context.getPercentageOfATRForMaxRisk()/100.00) - buffer, Digits);
-               stopLoss = NormalizeDouble(rangeHigh + buffer, Digits);
-               cancelPrice = NormalizeDouble(rangeHigh - context.getATR() * (context.getPercentageOfATRForMaxVolatility() / 100.00), Digits); //cancel if above 20% of ATR
-               orderType = OP_SELLLIMIT;
-               nextState = new SellLimitOrderOpened(context, cancelPrice);
+               //write to log
                context.addLogEntry("Range (" + IntegerToString(rangePips) + " micro pips) is greater than max risk (" + DoubleToString(context.getPercentageOfATRForMaxRisk(), 2) +  
                                    "% but less than max. volatility " + DoubleToString(context.getPercentageOfATRForMaxVolatility(), 2) + "%) of ATR (" + IntegerToString(ATRPips) + " micro pips). Bid price is less than entry price", true); 
-               context.addLogEntry("Attempting to place SellLimit Order @" + DoubleToString(entryPrice, Digits) + " with stop loss @" + DoubleToString(stopLoss, Digits) + " and cancel price @" + DoubleToString(cancelPrice, Digits), Digits);
+               
+               
+               entryPrice = rangeHigh - context.getATR() * (context.getPercentageOfATRForMaxRisk()/100.00) - buffer;
+               stopLoss = rangeHigh + buffer;
+               cancelPrice = rangeHigh - context.getATR() * (context.getPercentageOfATRForMaxVolatility() / 100.00); //cancel if above 20% of ATR
+               orderType = OP_SELLLIMIT;
+               positionSize = 1;
+               nextState = new SellLimitOrderOpened(context);
+              
             } else 
             //Range is above risk level, but below max volatility level. Current Bid price is greater than entry level.  
             if (((rangeHigh-rangeLow)<((context.getPercentageOfATRForMaxVolatility()/100.00)*context.getATR())) && 
-                 (Bid > NormalizeDouble(rangeHigh - context.getATR() * (context.getPercentageOfATRForMaxRisk()/100.00) - buffer, Digits))) {
-                entryPrice = NormalizeDouble(rangeHigh - context.getATR() * (context.getPercentageOfATRForMaxRisk()/100.00) - buffer, Digits);
-                stopLoss = NormalizeDouble(rangeHigh + buffer, Digits);
+                 (Bid > rangeHigh - context.getATR() * (context.getPercentageOfATRForMaxRisk()/100.00) - buffer)) {
+                 
+                 //write to log
+                 context.addLogEntry("Range (" + IntegerToString(rangePips) + " micro pips) is greater than max risk " + DoubleToString(context.getPercentageOfATRForMaxRisk(), 2) +  
+                                   "% but less than max. volatility " + DoubleToString(context.getPercentageOfATRForMaxVolatility(), 2) + "% of ATR (" + IntegerToString(ATRPips) + "). Bid price is greater than entry price", true); 
+                
+                 
+                entryPrice = rangeHigh - context.getATR() * (context.getPercentageOfATRForMaxRisk()/100.00) - buffer;
+                stopLoss = rangeHigh + buffer;
                 cancelPrice = rangeHigh;
                 orderType = OP_SELLSTOP; 
-                nextState = new StopSellOrderOpened(context, cancelPrice);
-                context.addLogEntry("Range (" + IntegerToString(rangePips) + " micro pips) is greater than max risk " + DoubleToString(context.getPercentageOfATRForMaxRisk(), 2) +  
-                                   "% but less than max. volatility " + DoubleToString(context.getPercentageOfATRForMaxVolatility(), 2) + "% of ATR (" + IntegerToString(ATRPips) + "). Bid price is greater than entry price", true); 
-                context.addLogEntry("Attempting to place SellStop Order @" + DoubleToString(entryPrice, Digits) + " with stop loss @" + DoubleToString(stopLoss, Digits) + " and cancel price @" + DoubleToString(cancelPrice, Digits), true);
+                positionSize = 1;
+                nextState = new StopSellOrderOpened(context);
+                
              }
-             ///parametrize slippage
-             int ticket = OrderSend(Symbol(), orderType, 1, entryPrice, 4, stopLoss, 0, "BuyStopOrder", 0, 0, clrBlue);
-             int result = ErrorManager::analzeAndProcessResult();
+             
+             //place Order
+             ErrorType result = ErrorManager::submitNewOrder(orderType, entryPrice, stopLoss, 0, cancelPrice, positionSize, context);
+
              if(result==NO_ERROR)  {
-                 context.setOrderTicket(ticket);
-                 context.setStopLoss(stopLoss);
-                 context.setPlannedEntry(entryPrice);
                  context.setInitialProfitTarget (NormalizeDouble(context.getPlannedEntry() + ((context.getPlannedEntry() - context.getStopLoss()) * (context.getMinProfitTarget())), Digits));
                  context.setState(nextState);
-                 context.addLogEntry("Order successfully placed", true);
+                 context.addLogEntry("Order successfully placed. Initial Profit target is: " + DoubleToString(context.getInitialProfitTarget(), Digits) + " (" + IntegerToString((int) (MathAbs(context.getInitialProfitTarget() - context.getPlannedEntry()) * factor)) + " micro pips)" + " Risk is: " + IntegerToString((int) (MathAbs(context.getStopLoss() - context.getPlannedEntry()) * factor)) + " micro pips" , true);
                  delete GetPointer(this);
                  return;
              }
-            if((result==RETRIABLE_ERROR) && (ticket==-1))  {
+            if((result==RETRIABLE_ERROR) && (context.getOrderTicket()==-1))  {
                  context.addLogEntry("Order entry failed. Error code: " + IntegerToString(GetLastError()) + ". Will re-try at next tick", true);
                  delete nextState;
                  return;
             }
 
             //this should never happen...
-            if((ticket!=-1) && (RETRIABLE_ERROR || NON_RETRIABLE_ERROR))  {
-                 context.addLogEntry("Error ocured but order is still open. Error code: " + IntegerToString(GetLastError()) + ". Continue with trade...", true);
-                 context.setOrderTicket(result);
-                 context.setStopLoss(stopLoss);
-                 context.setPlannedEntry(entryPrice);
+            if((context.getOrderTicket()!=-1) && (RETRIABLE_ERROR || NON_RETRIABLE_ERROR))  {
+                 context.addLogEntry("Error ocured but order is still open. Error code: " + IntegerToString(GetLastError()) + ". Continue with trade. Initial Profit target is: " + DoubleToString(context.getInitialProfitTarget(), Digits) + " (" + IntegerToString((int) (MathAbs(context.getInitialProfitTarget() - context.getPlannedEntry()) * factor)) + " micro pips)" + " Risk is: " + IntegerToString((int) (MathAbs(context.getStopLoss() - context.getPlannedEntry()) * factor)) + " micro pips" , true);
                  context.setInitialProfitTarget (NormalizeDouble(context.getPlannedEntry() + ((context.getPlannedEntry() - context.getStopLoss()) * (context.getMinProfitTarget())), Digits));
                  context.setState(nextState);
                  delete GetPointer(this);
                  return;
               }
 
-            if((result==NON_RETRIABLE_ERROR) && (ticket==-1))  {
+            if((result==NON_RETRIABLE_ERROR) && (context.getOrderTicket()==-1))  {
                context.addLogEntry("Non-recoverable error occurred. Errorcode: " + IntegerToString(GetLastError()) + ". Trade will be canceled", true);
                context.setState(new TradeClosed(context));
                delete nextState;

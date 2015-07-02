@@ -15,20 +15,18 @@
 
 class BuyLimitOrderOpened : public TradeState {
 public: 
-   BuyLimitOrderOpened(ATRTrade* aContext, double aCancelLevel);
+   BuyLimitOrderOpened(ATRTrade* aContext);
    virtual void update();
 
 private: 
    ATRTrade* context; //hides context in Trade
-   double cancelLevel;
 };
 
-BuyLimitOrderOpened::BuyLimitOrderOpened(ATRTrade* aContext, double aCancelLevel) {
+BuyLimitOrderOpened::BuyLimitOrderOpened(ATRTrade* aContext) {
       this.context = aContext;
-      this.cancelLevel = aCancelLevel; 
 }
 void BuyLimitOrderOpened::update() {
-   if(Ask > cancelLevel) {
+   if(Ask > context.getCancelPrice()) {
       context.addLogEntry("Ask price went above cancel level. Attempting to delete order.", true);
       bool success=OrderDelete(context.getOrderTicket(),clrRed);
       if (success) {

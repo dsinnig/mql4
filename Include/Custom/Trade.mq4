@@ -28,6 +28,14 @@ public:
     double getActualEntry() const; 
     void setStopLoss(double sL); 
     double getStopLoss() const; 
+    void setOriginalStopLoss(double sL); 
+    double getOriginalStopLoss() const; 
+    void setTakeProfit(double tP); 
+    double getTakeProfit() const; 
+    void setCancelPrice(double cP); 
+    double getCancelPrice() const; 
+    void setPositionSize(double p); 
+    double getPositionSize() const; 
     void setInitialProfitTarget(double target); 
     double getInitialProfitTarget() const; 
     void setActualClose (double close);
@@ -43,6 +51,9 @@ private:
     double plannedEntry;
     double actualEntry;
     double stopLoss;
+    double originalStopLoss;
+    double takeProfit;
+    double cancelPrice;
     double actualClose;
     double initialProfitTarget;
     string log[1000];
@@ -59,9 +70,12 @@ Trade::Trade() {
     this.orderTicket=-1;
     this.actualEntry=-1;
     this.actualClose=-1;
-    this.initialProfitTarget=-1;
-    this.plannedEntry=-1;
-    this.stopLoss=-1;
+    this.takeProfit = 0;
+    this.cancelPrice = 0;
+    this.initialProfitTarget=0;
+    this.plannedEntry=0;
+    this.stopLoss=0;
+    this.originalStopLoss=0;
     this.positionSize=0;
     this.logSize=0;
 
@@ -156,6 +170,38 @@ void Trade::setStopLoss(double sL) {
 
 double Trade::getStopLoss() const {
     return this.stopLoss;
+}
+
+void Trade::setOriginalStopLoss(double sL) {
+    this.originalStopLoss=sL;
+}
+
+double Trade::getOriginalStopLoss() const {
+    return this.originalStopLoss;
+}
+
+void Trade::setTakeProfit(double tP) {
+    this.takeProfit=tP;
+}
+
+double Trade::getTakeProfit() const {
+    return this.takeProfit;
+}
+
+void Trade::setCancelPrice(double cP) {
+    this.cancelPrice=cP;
+}
+
+double Trade::getCancelPrice() const {
+    return this.cancelPrice;
+}
+
+void Trade::setPositionSize(double p) {
+    this.positionSize=p;
+}
+
+double Trade::getPositionSize() const {
+    return this.positionSize;
 }
 
 void Trade::setInitialProfitTarget(double target) {

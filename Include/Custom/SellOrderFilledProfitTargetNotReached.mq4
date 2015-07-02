@@ -36,7 +36,9 @@ void SellOrderFilledProfitTargetNotReached::update() {
    }
    
    if(OrderCloseTime()!=0) {
-      context.addLogEntry("Stop loss triggered @" + DoubleToString(OrderClosePrice(), Digits), true);
+      double pips = MathAbs(OrderClosePrice() - context.getActualEntry()) * ErrorManager::getPipConversionFactor();
+      string logMessage = "Loss of " + DoubleToString(pips, 1) + " micro pips.";
+      context.addLogEntry("Stop loss triggered @" + DoubleToString(OrderClosePrice(), Digits) + " " + logMessage, true);
       context.setActualClose(OrderClosePrice());
       context.setState(new TradeClosed(context));
       delete GetPointer(this);

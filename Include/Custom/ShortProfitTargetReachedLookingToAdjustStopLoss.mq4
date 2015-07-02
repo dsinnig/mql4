@@ -50,7 +50,19 @@ void ShortProfitTargetReachedLookingToAdjustStopLoss::update() {
         }
       if(OrderCloseTime()!=0) 
         {
-         context.addLogEntry("Stop loss triggered @" + DoubleToString(OrderClosePrice(), Digits), true);
+         string logMessage;
+         
+         double riskReward = double ((context.getActualEntry() - OrderClosePrice())) / (context.getOriginalStopLoss() - context.getActualEntry());
+         
+         double pips = MathAbs(OrderClosePrice() - context.getActualEntry()) * ErrorManager::getPipConversionFactor();
+         
+         if (OrderClosePrice() > context.getActualEntry()) logMessage = "Loss of " + DoubleToString(pips,1) + " micro pips.";
+         else logMessage = "Gain of " + DoubleToString(pips, 1) + " micro pips (" + DoubleToString(riskReward, 2) + "R).";
+         
+         context.addLogEntry("Stop loss triggered @" + DoubleToString(OrderClosePrice(), Digits) + " " + logMessage, true);
+         
+         
+         
          context.setActualClose(OrderClosePrice());
          context.setState(new TradeClosed(context));
          delete GetPointer(this);
@@ -113,7 +125,7 @@ void ShortProfitTargetReachedLookingToAdjustStopLoss::update() {
                  {
                   context.addLogEntry("High point between highs is: " + DoubleToString(high, Digits), true);
                  }
-               double buffer = context.getRangeBufferInMicroPips() / 100000.00; ///Check for 3 digit pais
+               double buffer = context.getRangeBufferInMicroPips() / ErrorManager::getPipConversionFactor(); ///Check for 3 digit pais
                if(upBarFound && (high+buffer<context.getInitialProfitTarget()) && (high+buffer<context.getStopLoss())) 
                  {
                   //adjust stop loss

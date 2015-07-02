@@ -19,21 +19,19 @@
 //+------------------------------------------------------------------+
 class StopSellOrderOpened : public TradeState {
 public:
-   StopSellOrderOpened(ATRTrade* aContext, double aCancelLevel);
+   StopSellOrderOpened(ATRTrade* aContext);
    virtual void update() ;
      
 private:
    ATRTrade* context; //hides context in Trade
-   double            cancelLevel;
 };
 
-StopSellOrderOpened::StopSellOrderOpened(ATRTrade* aContext, double aCancelLevel) {
-   this.cancelLevel=aCancelLevel;
+StopSellOrderOpened::StopSellOrderOpened(ATRTrade* aContext) {
    this.context = aContext;
 }
 
 void StopSellOrderOpened::update() {
-   if(Bid >= cancelLevel) {
+   if(Bid >= context.getCancelPrice()) {
       context.addLogEntry("Bid price went above cancel level. Attempting to delete order.", true);
       bool success=OrderDelete(context.getOrderTicket(),clrRed);
       if (success) {
