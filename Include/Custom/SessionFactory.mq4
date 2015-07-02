@@ -69,7 +69,7 @@ static  Session* SessionFactory::getCurrentSession(datetime aLengthOfSundaySessi
       else if (timeElapsedSinceWeekStart < aLengthOfSundaySession + 4 * fullDayInSeconds + (fullDayInSeconds - aLengthOfSundaySession)) {
          if ((SessionFactory::currentSession == NULL) || (SessionFactory::currentSession.getID() != 5)) {
             delete currentSession;
-            currentSession = new Session (5,"FRIDAY",weekStartTime + aLengthOfSundaySession + 4 * fullDayInSeconds, weekStartTime + aLengthOfSundaySession + 4 * fullDayInSeconds + (fullDayInSeconds - aLengthOfSundaySession), weekStartTime + aLengthOfSundaySession + 2 * fullDayInSeconds, true, aHHLL_Threshold);
+            currentSession = new Session (5,"FRIDAY",weekStartTime + aLengthOfSundaySession + 4 * fullDayInSeconds, weekStartTime + aLengthOfSundaySession + 4 * fullDayInSeconds + (fullDayInSeconds - aLengthOfSundaySession), weekStartTime + aLengthOfSundaySession + 3 * fullDayInSeconds, true, aHHLL_Threshold);
          }
          return currentSession;
       }

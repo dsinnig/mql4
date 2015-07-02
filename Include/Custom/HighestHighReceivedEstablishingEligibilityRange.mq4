@@ -87,7 +87,7 @@ void HighestHighReceivedEstablishingEligibilityRange::update()  {
                
                entryPrice = NormalizeDouble(rangeHigh - context.getATR() * (context.getPercentageOfATRForMaxRisk()/100.00) - buffer, Digits);
                stopLoss = NormalizeDouble(rangeHigh + buffer, Digits);
-               cancelPrice = NormalizeDouble(rangeHigh - context.getATR() * (context.getPercentageOfATRForMaxVolatility() / 100.00) * context.getATR(), Digits); //cancel if above 20% of ATR
+               cancelPrice = NormalizeDouble(rangeHigh - context.getATR() * (context.getPercentageOfATRForMaxVolatility() / 100.00), Digits); //cancel if above 20% of ATR
                orderType = OP_SELLLIMIT;
                nextState = new SellLimitOrderOpened(context, cancelPrice);
                context.addLogEntry("Range (" + IntegerToString(rangePips) + " micro pips) is greater than max risk (" + DoubleToString(context.getPercentageOfATRForMaxRisk(), 2) +  
@@ -113,7 +113,7 @@ void HighestHighReceivedEstablishingEligibilityRange::update()  {
                  context.setOrderTicket(ticket);
                  context.setStopLoss(stopLoss);
                  context.setPlannedEntry(entryPrice);
-                 context.setInitialProfitTarget (NormalizeDouble(context.getPlannedEntry() + ((context.getPlannedEntry() - context.getStopLoss()) * (context.getPercentageOfATRForMinProfitTarget() / 10)), Digits));
+                 context.setInitialProfitTarget (NormalizeDouble(context.getPlannedEntry() + ((context.getPlannedEntry() - context.getStopLoss()) * (context.getMinProfitTarget())), Digits));
                  context.setState(nextState);
                  context.addLogEntry("Order successfully placed", true);
                  delete GetPointer(this);
@@ -131,7 +131,7 @@ void HighestHighReceivedEstablishingEligibilityRange::update()  {
                  context.setOrderTicket(result);
                  context.setStopLoss(stopLoss);
                  context.setPlannedEntry(entryPrice);
-                 context.setInitialProfitTarget (NormalizeDouble(context.getPlannedEntry() + ((context.getPlannedEntry() - context.getStopLoss()) * (context.getPercentageOfATRForMinProfitTarget() / 10)), Digits));
+                 context.setInitialProfitTarget (NormalizeDouble(context.getPlannedEntry() + ((context.getPlannedEntry() - context.getStopLoss()) * (context.getMinProfitTarget())), Digits));
                  context.setState(nextState);
                  delete GetPointer(this);
                  return;

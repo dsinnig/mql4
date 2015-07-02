@@ -19,7 +19,7 @@ input int HHLL_Threshold=100; //Time in minutes after last HH / LL before a trad
 input int lengthOfGracePeriod=10; //Length in 1M bars of Grace Period after a tradeable HH/LL occured
 input double maxRisk=10; //Max risk (in percent of ATR)
 input double maxVolatility=20; //Max volatility (in percent of ATR)
-input double percentageOfATRForMinProfitTarget=40; //Min Profit Target (in percent of ATR)
+input double minProfitTarget=4; //Min Profit Target (in factors of the risk e.g., 3 = 3* Risk)
 input int rangeBuffer=20; //Buffer in micropips for order opening and closing
 
 //check for 1M charts
@@ -109,8 +109,10 @@ void OnTick()
                 " LL: ", currSession.getLowestLow(), "@ ", currSession.getLowestLowTime());
         
          */
+         
          Print(TimeCurrent()," Start session: ", currSession.getName(), " ATR: ",NormalizeDouble(currSession.getATR(), Digits), " (", (int) (currSession.getATR() * 100000), " micro pips)", ", HH: ", currSession.getHighestHigh(), ", LL: ", currSession.getLowestLow());
          
+         Print ("Reference date: ", currSession.getHHLL_ReferenceDateTime());
          
          }
       }
@@ -125,7 +127,7 @@ void OnTick()
    if (currSession.tradingAllowed()) {
       if (updateResult == 1) {
          Print("Tradeable Highest High found: ", currSession.getHighestHigh(), " Time: ", currSession.getHighestHighTime());
-         Trade* trade = new ATRTrade(currSession.getATR(), lengthOfGracePeriod, maxRisk, maxVolatility, percentageOfATRForMinProfitTarget, rangeBuffer);
+         Trade* trade = new ATRTrade(currSession.getATR(), lengthOfGracePeriod, maxRisk, maxVolatility, minProfitTarget, rangeBuffer);
          trade.setState (new HighestHighReceivedEstablishingEligibilityRange(trade));
          addTrade(trade);
      }
@@ -134,7 +136,7 @@ void OnTick()
       if(updateResult==-1) 
         {
          Print("Tradeable Lowest Low found: ",currSession.getLowestLow()," Time: ",currSession.getLowestLowTime());
-         Trade* trade = new ATRTrade(currSession.getATR(), lengthOfGracePeriod, maxRisk, maxVolatility, percentageOfATRForMinProfitTarget, rangeBuffer);
+         Trade* trade = new ATRTrade(currSession.getATR(), lengthOfGracePeriod, maxRisk, maxVolatility, minProfitTarget, rangeBuffer);
          trade.setState (new LowestLowReceivedEstablishingEligibilityRange(trade));
          addTrade(trade);
         }

@@ -80,6 +80,9 @@ void Session::initialize() {
       }
       
       int indexOfHighestHigh = iHighest(Symbol(),PERIOD_H1,MODE_HIGH,indexOfReferenceStart,0);
+      
+      Print("Index of HH is: ", indexOfHighestHigh);
+      
       int indexOfLowestLow = iLowest(Symbol(), PERIOD_H1, MODE_LOW, indexOfReferenceStart,0);
       
       if ((indexOfHighestHigh == -1) || (indexOfLowestLow == -1)) {
@@ -88,7 +91,13 @@ void Session::initialize() {
       }
       
       this.highestHigh = iHigh(Symbol(), PERIOD_H1, indexOfHighestHigh);
+      
+      Print ("Highest High is: ", this.highestHigh);
+      
       this.dateOfHighestHigh = iTime(Symbol(), PERIOD_H1, indexOfHighestHigh);
+      
+      Print ("Date of highest high is: ", this.dateOfHighestHigh);
+      
       this.lowestLow = iLow(Symbol(), PERIOD_H1, indexOfLowestLow);
       this.dateOfLowestLow = iTime(Symbol(), PERIOD_H1, indexOfLowestLow);
    

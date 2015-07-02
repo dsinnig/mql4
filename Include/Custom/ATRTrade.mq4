@@ -19,7 +19,7 @@ public:
    int getLengthIn1MBarsOfWaitingPeriod() const; 
    double getPercentageOfATRForMaxRisk() const; 
    double getPercentageOfATRForMaxVolatility() const; 
-   double getPercentageOfATRForMinProfitTarget() const; 
+   double getMinProfitTarget() const; 
    int getRangeBufferInMicroPips() const;
    
 
@@ -28,16 +28,16 @@ private:
    int lengthIn1MBarsOfWaitingPeriod;
    double percentageOfATRForMaxRisk;
    double percentageOfATRForMaxVolatility;
-   double percentageOfATRForMinProfitTarget;
+   double minProfitTarget;
    int rangeBufferInMicroPips;
 };
       
-ATRTrade::ATRTrade(double _ATR,int _lengthIn1MBarsOfWaitingPeriod,double _percentageOfATRForMaxRisk,double _percentageOfATRForMaxVolatility,double _percentageOfATRForMinProfitTarget, int _rangeBufferInMicroPips) : Trade() {
+ATRTrade::ATRTrade(double _ATR,int _lengthIn1MBarsOfWaitingPeriod,double _percentageOfATRForMaxRisk,double _percentageOfATRForMaxVolatility,double _minProfitTarget, int _rangeBufferInMicroPips) : Trade() {
    this.atr=_ATR;
    this.lengthIn1MBarsOfWaitingPeriod=_lengthIn1MBarsOfWaitingPeriod;
    this.percentageOfATRForMaxRisk=_percentageOfATRForMaxRisk;
    this.percentageOfATRForMaxVolatility=_percentageOfATRForMaxVolatility;
-   this.percentageOfATRForMinProfitTarget = _percentageOfATRForMinProfitTarget;
+   this.minProfitTarget = _minProfitTarget;
    this.rangeBufferInMicroPips = _rangeBufferInMicroPips;
 }
 
@@ -57,8 +57,8 @@ double ATRTrade::getPercentageOfATRForMaxVolatility() const {
    return this.percentageOfATRForMaxVolatility;
 }
 
-double ATRTrade::getPercentageOfATRForMinProfitTarget() const {
-   return percentageOfATRForMinProfitTarget;
+double ATRTrade::getMinProfitTarget() const {
+   return minProfitTarget;
 }
 
 int ATRTrade::getRangeBufferInMicroPips() const {

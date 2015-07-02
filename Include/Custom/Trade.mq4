@@ -48,8 +48,11 @@ private:
     string log[1000];
     int logSize;      
     double positionSize;
+    static const int OFFSET;
     
 };
+
+const int Trade::OFFSET = (-7) *60*60;
 
 Trade::Trade() {
     this.state=NULL;
@@ -63,12 +66,12 @@ Trade::Trade() {
     this.logSize=0;
 
     this.id=Symbol() + 
-            IntegerToString(TimeYear(TimeCurrent()))+ "-" +
-            IntegerToString(TimeMonth(TimeCurrent()), 2, '0')+ "-" +
-            IntegerToString(TimeDay(TimeCurrent()), 2, '0')+ "::" +
-            IntegerToString(TimeHour(TimeCurrent()), 2, '0')+ ":" +
-            IntegerToString(TimeMinute(TimeCurrent()), 2, '0')+ ":" +
-            IntegerToString(TimeSeconds(TimeCurrent()), 2, '0');
+            IntegerToString(TimeYear(TimeCurrent()+OFFSET))+ "-" +
+            IntegerToString(TimeMonth(TimeCurrent()+OFFSET), 2, '0')+ "-" +
+            IntegerToString(TimeDay(TimeCurrent()+OFFSET), 2, '0')+ "::" +
+            IntegerToString(TimeHour(TimeCurrent()+OFFSET), 2, '0')+ ":" +
+            IntegerToString(TimeMinute(TimeCurrent()+OFFSET), 2, '0')+ ":" +
+            IntegerToString(TimeSeconds(TimeCurrent()+OFFSET), 2, '0');
 }
 
 Trade::~Trade() {
@@ -81,7 +84,7 @@ void Trade::update() {
 }
 
 void Trade::addLogEntry(string entry, bool print) {
-    this.log[logSize] = TimeToStr(TimeCurrent(), TIME_DATE | TIME_SECONDS) + ": " + entry;
+    this.log[logSize] = TimeToStr(TimeCurrent()+OFFSET, TIME_DATE | TIME_SECONDS) + ": " + entry;
     logSize++;
     if (print) 
         Print(TimeToStr(TimeCurrent(), TIME_DATE | TIME_SECONDS) + ": TradeID: " + this.id + " " + entry);
