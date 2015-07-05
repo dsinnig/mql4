@@ -58,9 +58,8 @@ void ShortProfitTargetReachedLookingToAdjustStopLoss::update() {
          
          if (OrderClosePrice() > context.getActualEntry()) logMessage = "Loss of " + DoubleToString(pips,1) + " micro pips.";
          else logMessage = "Gain of " + DoubleToString(pips, 1) + " micro pips (" + DoubleToString(riskReward, 2) + "R).";
-         
          context.addLogEntry("Stop loss triggered @" + DoubleToString(OrderClosePrice(), Digits) + " " + logMessage, true);
-         
+         context.addLogEntry("Loss of: $" + DoubleToString(OrderProfit(),2) + "; Commission: $" + DoubleToString(OrderCommission(),2) + "; Swap: $" + DoubleToString(OrderSwap(),2) + "; New Account balance: $" + DoubleToString(AccountBalance(),2), true);
          
          
          context.setActualClose(OrderClosePrice());

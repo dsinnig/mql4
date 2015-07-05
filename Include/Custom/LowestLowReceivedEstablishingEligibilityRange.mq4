@@ -125,8 +125,7 @@ void LowestLowReceivedEstablishingEligibilityRange::update()  {
              double riskCapital = AccountBalance() * 0.0075;
              positionSize = NormalizeDouble(OrderManager::getLotSize(riskCapital, riskPips), 2);
              
-             context.addLogEntry("AccountBalance: $" + DoubleToString(AccountBalance(), 2) + " Risk Capital: $" + DoubleToString(riskCapital, 2) + " riskPips: " + DoubleToString(riskPips, 2) + " micro pips positionSize: " + DoubleToString(positionSize, 2) + " lots", true);
-             
+             context.addLogEntry("AccountBalance: $" + DoubleToString(AccountBalance(), 2) + "; Risk Capital: $" + DoubleToString(riskCapital, 2) + "; Risk pips: " + DoubleToString(riskPips, 2) + " micro pips; Position Size: " + DoubleToString(positionSize, 2) + " lots; Pip value: " + DoubleToString(OrderManager::getPipValue(),Digits), true);
              
              //place Order
              ErrorType result = OrderManager::submitNewOrder(orderType, entryPrice, stopLoss, 0, cancelPrice, positionSize, context);
