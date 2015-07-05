@@ -24,9 +24,11 @@ public:
    
 private:
    ATRTrade* context; //hides conext in Trade
-   datetime  entryTime;
-   double    rangeLow;
-   double    rangeHigh;
+   datetime entryTime;
+   double rangeLow;
+   double rangeHigh;
+   int barCounter;
+   static bool isNewBar();
 };
 
 HighestHighReceivedEstablishingEligibilityRange::HighestHighReceivedEstablishingEligibilityRange(ATRTrade *aContext) {
@@ -34,6 +36,7 @@ HighestHighReceivedEstablishingEligibilityRange::HighestHighReceivedEstablishing
     this.entryTime = Time[0];
     this.rangeHigh = -1;
     this.rangeLow=99999;
+    this.barCounter=0;
 
     context.addLogEntry("Highest high found - establishing eligibility range. Highest high: " + DoubleToString(Close[0], Digits), true); 
 }
@@ -47,8 +50,11 @@ void HighestHighReceivedEstablishingEligibilityRange::update()  {
       if(High[0]>rangeHigh) rangeHigh=High[0];
     }
 
+    if(isNewBar()) barCounter++; 
+
     //Waiting Period over? (deault is 10mins + 1min)
-    if(Time[0]-entryTime>=60*(context.getLengthIn1MBarsOfWaitingPeriod()+1))  {
+    //if(Time[0]-entryTime>=60*(context.getLengthIn1MBarsOfWaitingPeriod()+1))  {
+      if (barCounter > context.getLengthIn1MBarsOfWaitingPeriod() +1) {
          int rangePips = (int)((rangeHigh-rangeLow)* factor); 
          int ATRPips = (int) (context.getATR() * factor); 
          
@@ -67,7 +73,7 @@ void HighestHighReceivedEstablishingEligibilityRange::update()  {
             double cancelPrice = 0.0;
             int orderType = -1;
             TradeState* nextState = NULL;
-            int positionSize = 0;
+            double positionSize = 0;
             double buffer = context.getRangeBufferInMicroPips() / factor; ///Works for 5 Digts pairs. Verify that calculation is valid for 3 Digits pairs
             //Range is less than max risk
             if ((rangeHigh-rangeLow)<((context.getPercentageOfATRForMaxRisk()/100.00)*context.getATR())) {
@@ -79,7 +85,6 @@ void HighestHighReceivedEstablishingEligibilityRange::update()  {
                stopLoss = rangeHigh + buffer;
                cancelPrice = rangeHigh;
                orderType = OP_SELLSTOP; 
-               positionSize = 1;
                nextState = new StopSellOrderOpened(context);
             }
             else 
@@ -96,7 +101,6 @@ void HighestHighReceivedEstablishingEligibilityRange::update()  {
                stopLoss = rangeHigh + buffer;
                cancelPrice = rangeHigh - context.getATR() * (context.getPercentageOfATRForMaxVolatility() / 100.00); //cancel if above 20% of ATR
                orderType = OP_SELLLIMIT;
-               positionSize = 1;
                nextState = new SellLimitOrderOpened(context);
               
             } else 
@@ -113,10 +117,15 @@ void HighestHighReceivedEstablishingEligibilityRange::update()  {
                 stopLoss = rangeHigh + buffer;
                 cancelPrice = rangeHigh;
                 orderType = OP_SELLSTOP; 
-                positionSize = 1;
                 nextState = new StopSellOrderOpened(context);
                 
              }
+             
+             int riskPips = (int) (MathAbs(stopLoss - entryPrice) * factor);
+             double riskCapital = AccountBalance() * 0.0075;
+             positionSize = NormalizeDouble(ErrorManager::getLotSize(riskCapital, riskPips), 2);
+             
+             context.addLogEntry("AccountBalance: $" + DoubleToString(AccountBalance(), 2) + " Risk Capital: $" + DoubleToString(riskCapital, 2) + " riskPips: " + DoubleToString(riskPips, 2) + " micro pips positionSize: " + DoubleToString(positionSize, 2) + " lots PipValue: " + DoubleToString(ErrorManager::getPipValue()), true);
              
              //place Order
              ErrorType result = ErrorManager::submitNewOrder(orderType, entryPrice, stopLoss, 0, cancelPrice, positionSize, context);
@@ -124,7 +133,7 @@ void HighestHighReceivedEstablishingEligibilityRange::update()  {
              if(result==NO_ERROR)  {
                  context.setInitialProfitTarget (NormalizeDouble(context.getPlannedEntry() + ((context.getPlannedEntry() - context.getStopLoss()) * (context.getMinProfitTarget())), Digits));
                  context.setState(nextState);
-                 context.addLogEntry("Order successfully placed. Initial Profit target is: " + DoubleToString(context.getInitialProfitTarget(), Digits) + " (" + IntegerToString((int) (MathAbs(context.getInitialProfitTarget() - context.getPlannedEntry()) * factor)) + " micro pips)" + " Risk is: " + IntegerToString((int) (MathAbs(context.getStopLoss() - context.getPlannedEntry()) * factor)) + " micro pips" , true);
+                 context.addLogEntry("Order successfully placed. Initial Profit target is: " + DoubleToString(context.getInitialProfitTarget(), Digits) + " (" + IntegerToString((int) (MathAbs(context.getInitialProfitTarget() - context.getPlannedEntry()) * factor)) + " micro pips)" + " Risk is: " + IntegerToString((int) riskPips) + " micro pips" , true);
                  delete GetPointer(this);
                  return;
              }
@@ -136,7 +145,7 @@ void HighestHighReceivedEstablishingEligibilityRange::update()  {
 
             //this should never happen...
             if((context.getOrderTicket()!=-1) && (RETRIABLE_ERROR || NON_RETRIABLE_ERROR))  {
-                 context.addLogEntry("Error ocured but order is still open. Error code: " + IntegerToString(GetLastError()) + ". Continue with trade. Initial Profit target is: " + DoubleToString(context.getInitialProfitTarget(), Digits) + " (" + IntegerToString((int) (MathAbs(context.getInitialProfitTarget() - context.getPlannedEntry()) * factor)) + " micro pips)" + " Risk is: " + IntegerToString((int) (MathAbs(context.getStopLoss() - context.getPlannedEntry()) * factor)) + " micro pips" , true);
+                 context.addLogEntry("Error ocured but order is still open. Error code: " + IntegerToString(GetLastError()) + ". Continue with trade. Initial Profit target is: " + DoubleToString(context.getInitialProfitTarget(), Digits) + " (" + IntegerToString((int) (MathAbs(context.getInitialProfitTarget() - context.getPlannedEntry()) * factor)) + " micro pips)" + " Risk is: " + IntegerToString((int) riskPips) + " micro pips" , true);
                  context.setInitialProfitTarget (NormalizeDouble(context.getPlannedEntry() + ((context.getPlannedEntry() - context.getStopLoss()) * (context.getMinProfitTarget())), Digits));
                  context.setState(nextState);
                  delete GetPointer(this);
@@ -153,3 +162,15 @@ void HighestHighReceivedEstablishingEligibilityRange::update()  {
         } //end else (that checks for general trade eligibility)
      } //end if for range delay check
 } 
+
+bool HighestHighReceivedEstablishingEligibilityRange::isNewBar() {
+   static datetime lastbar=0;
+   datetime curbar=Time[0];
+   if(lastbar!=curbar) {
+      lastbar=curbar;
+      return (true);
+   }
+   else {
+      return(false);
+   }
+}

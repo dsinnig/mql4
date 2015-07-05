@@ -23,8 +23,24 @@ public:
    static ErrorType analzeAndProcessResult();
    static ErrorType submitNewOrder(int orderType, double entryPrice, double stopLoss, double takeProfit, double cancelPrice, double positionSize, Trade* trade);
    static double getPipConversionFactor();
+   static double getPipValue();
+   static double getLotSize(double riskCapital, int riskPips);
 };
 
+static double ErrorManager::getPipValue() {
+      double point;
+      if (Digits == 5)
+         point = Point;
+      else 
+         point = Point / 10.0;
+      
+      return (MarketInfo(Symbol(), MODE_TICKVALUE) * point) / MarketInfo(Symbol(), MODE_TICKSIZE);
+}
+
+static double ErrorManager::getLotSize(double riskCapital, int riskPips) {
+   double pipValue = ErrorManager::getPipValue();
+   return riskCapital / ((double) riskPips * pipValue);   
+}
 
 static double ErrorManager::getPipConversionFactor() {
     //multiplier depending on YEN or non YEN pairs
