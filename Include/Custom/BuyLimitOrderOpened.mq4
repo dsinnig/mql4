@@ -12,6 +12,7 @@
 #include "ATRTrade.mq4"
 #include "TradeClosed.mq4"
 #include "BuyOrderFilledProfitTargetNotReached.mq4"
+#include "OrderManager.mq4"
 
 class BuyLimitOrderOpened : public TradeState {
 public: 
@@ -27,18 +28,29 @@ BuyLimitOrderOpened::BuyLimitOrderOpened(ATRTrade* aContext) {
 }
 void BuyLimitOrderOpened::update() {
    if(Ask > context.getCancelPrice()) {
-      context.addLogEntry("Ask price went above cancel level. Attempting to delete order.", true);
-      bool success=OrderDelete(context.getOrderTicket(),clrRed);
-      if (success) {
+      context.addLogEntry("Ask price went above cancel level", true);
+      
+      ErrorType result = OrderManager::deleteOrder(context.getOrderTicket(), context);
+      
+      if (result == NO_ERROR) {
          context.addLogEntry("Order deleted successfully", true);
          context.setState(new TradeClosed(context));
          delete GetPointer(this);
          return;
-      } 
-      else {
-         context.addLogEntry("Order could not be deleted. Error code: " + IntegerToString(GetLastError()) + " Wil re-try at next tick.", true);
+      }
+      
+      if (result == RETRIABLE_ERROR) {
+         context.addLogEntry("Order could not be deleted. Error code: " + IntegerToString(GetLastError()) + " Will re-try at next tick.", true);
          return;
       }
+
+      if (result == NON_RETRIABLE_ERROR) {
+         ///review the logic of this 
+         context.addLogEntry("Order could not be deleted. Error code: " + IntegerToString(GetLastError()) + " Trade will close", true);
+         context.setState(new TradeClosed(context));
+         delete (GetPointer(this));
+         return;
+      } 
    }
 
    if(OrderSelect(context.getOrderTicket(),SELECT_BY_TICKET,MODE_TRADES)) {

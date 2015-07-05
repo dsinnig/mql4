@@ -22,6 +22,7 @@ class OrderManager {
 public:
    static ErrorType analzeAndProcessResult();
    static ErrorType submitNewOrder(int orderType, double entryPrice, double stopLoss, double takeProfit, double cancelPrice, double positionSize, Trade* trade);
+   static ErrorType deleteOrder(int orderTicket, Trade* trade);
    static double getPipConversionFactor();
    static double getPipValue();
    static double getLotSize(double riskCapital, int riskPips);
@@ -104,6 +105,14 @@ static ErrorType OrderManager::submitNewOrder(int orderType, double _entryPrice,
    return result;
 }
    
+static ErrorType OrderManager::deleteOrder(int orderTicket, Trade* trade) {
+   trade.addLogEntry("Attemting to delete Order (ticket number: " + IntegerToString(orderTicket) + ")", true);
+   ResetLastError();
+   bool success=OrderDelete(orderTicket,clrRed);  
+   return analzeAndProcessResult();
+}
+
+
 static ErrorType OrderManager::analzeAndProcessResult() {
    int result=GetLastError();
    switch(result) {
