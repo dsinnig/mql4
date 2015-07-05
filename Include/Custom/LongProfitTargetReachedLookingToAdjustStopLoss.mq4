@@ -11,7 +11,7 @@
 #include "TradeState.mq4"
 #include "ATRTrade.mq4"
 #include "TradeClosed.mq4"
-#include "ErrorManager.mq4"
+#include "OrderManager.mq4"
 
 //+------------------------------------------------------------------+
 //|                                                                  |
@@ -48,7 +48,7 @@ void LongProfitTargetReachedLookingToAdjustStopLoss::update() {
    if(OrderCloseTime()!=0) {
       double riskReward = (OrderClosePrice() - context.getActualEntry()) / (context.getActualEntry() - context.getOriginalStopLoss());
       string logMessage;
-      double pips = MathAbs(OrderClosePrice() - context.getActualEntry()) * ErrorManager::getPipConversionFactor();
+      double pips = MathAbs(OrderClosePrice() - context.getActualEntry()) * OrderManager::getPipConversionFactor();
       if (OrderClosePrice() > context.getActualEntry()) {
          logMessage = "Gain of " + DoubleToString(pips,1) + " micro pips (" + DoubleToString(riskReward, 2) + "R).";
       } else {
@@ -119,7 +119,7 @@ void LongProfitTargetReachedLookingToAdjustStopLoss::update() {
                  }
 
                //factor in 20 micropips
-               double buffer = context.getRangeBufferInMicroPips() / ErrorManager::getPipConversionFactor(); ///Check for 3 digit pais
+               double buffer = context.getRangeBufferInMicroPips() / OrderManager::getPipConversionFactor(); ///Check for 3 digit pais
                if(downBarFound && (low-buffer>context.getInitialProfitTarget()) && (low -buffer>context.getStopLoss())) 
                  {
                   context.addLogEntry("Attempting to adjust stop loss to: " + DoubleToString(low-buffer,Digits), true);
@@ -131,7 +131,7 @@ void LongProfitTargetReachedLookingToAdjustStopLoss::update() {
                      return;
                     }
                   bool res=OrderModify(OrderTicket(),OrderOpenPrice(),NormalizeDouble(low-buffer,Digits),0,clrBlue);
-                  int result=ErrorManager::analzeAndProcessResult();
+                  int result=OrderManager::analzeAndProcessResult();
                   if(result==NO_ERROR) 
                     {
                      context.setStopLoss(NormalizeDouble(low-buffer,Digits));

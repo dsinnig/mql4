@@ -12,7 +12,7 @@
 #include "TradeState.mq4"
 #include "ATRTrade.mq4"
 #include "TradeClosed.mq4"
-#include "ErrorManager.mq4"
+#include "OrderManager.mq4"
 
 //+------------------------------------------------------------------+
 //|                                                                  |
@@ -54,7 +54,7 @@ void ShortProfitTargetReachedLookingToAdjustStopLoss::update() {
          
          double riskReward = double ((context.getActualEntry() - OrderClosePrice())) / (context.getOriginalStopLoss() - context.getActualEntry());
          
-         double pips = MathAbs(OrderClosePrice() - context.getActualEntry()) * ErrorManager::getPipConversionFactor();
+         double pips = MathAbs(OrderClosePrice() - context.getActualEntry()) * OrderManager::getPipConversionFactor();
          
          if (OrderClosePrice() > context.getActualEntry()) logMessage = "Loss of " + DoubleToString(pips,1) + " micro pips.";
          else logMessage = "Gain of " + DoubleToString(pips, 1) + " micro pips (" + DoubleToString(riskReward, 2) + "R).";
@@ -125,7 +125,7 @@ void ShortProfitTargetReachedLookingToAdjustStopLoss::update() {
                  {
                   context.addLogEntry("High point between highs is: " + DoubleToString(high, Digits), true);
                  }
-               double buffer = context.getRangeBufferInMicroPips() / ErrorManager::getPipConversionFactor(); ///Check for 3 digit pais
+               double buffer = context.getRangeBufferInMicroPips() / OrderManager::getPipConversionFactor(); ///Check for 3 digit pais
                if(upBarFound && (high+buffer<context.getInitialProfitTarget()) && (high+buffer<context.getStopLoss())) 
                  {
                   //adjust stop loss
@@ -137,7 +137,7 @@ void ShortProfitTargetReachedLookingToAdjustStopLoss::update() {
                      return;
                     }
                   bool res=OrderModify(OrderTicket(),OrderOpenPrice(),NormalizeDouble(high+buffer,Digits),0,clrBlue);
-                  int result=ErrorManager::analzeAndProcessResult();
+                  int result=OrderManager::analzeAndProcessResult();
                   if(result==NO_ERROR) 
                     {
                      context.setStopLoss(NormalizeDouble(high+buffer,Digits));

@@ -43,7 +43,7 @@ HighestHighReceivedEstablishingEligibilityRange::HighestHighReceivedEstablishing
 
 
 void HighestHighReceivedEstablishingEligibilityRange::update()  {
-    double factor = ErrorManager::getPipConversionFactor(); 
+    double factor = OrderManager::getPipConversionFactor(); 
     
     //update range lows and range highs
     if(Low[0]<rangeLow) rangeLow=Low[0];  {
@@ -123,12 +123,12 @@ void HighestHighReceivedEstablishingEligibilityRange::update()  {
              
              int riskPips = (int) (MathAbs(stopLoss - entryPrice) * factor);
              double riskCapital = AccountBalance() * 0.0075;
-             positionSize = NormalizeDouble(ErrorManager::getLotSize(riskCapital, riskPips), 2);
+             positionSize = NormalizeDouble(OrderManager::getLotSize(riskCapital, riskPips), 2);
              
-             context.addLogEntry("AccountBalance: $" + DoubleToString(AccountBalance(), 2) + " Risk Capital: $" + DoubleToString(riskCapital, 2) + " riskPips: " + DoubleToString(riskPips, 2) + " micro pips positionSize: " + DoubleToString(positionSize, 2) + " lots PipValue: " + DoubleToString(ErrorManager::getPipValue()), true);
+             context.addLogEntry("AccountBalance: $" + DoubleToString(AccountBalance(), 2) + " Risk Capital: $" + DoubleToString(riskCapital, 2) + " riskPips: " + DoubleToString(riskPips, 2) + " micro pips positionSize: " + DoubleToString(positionSize, 2) + " lots PipValue: " + DoubleToString(OrderManager::getPipValue()), true);
              
              //place Order
-             ErrorType result = ErrorManager::submitNewOrder(orderType, entryPrice, stopLoss, 0, cancelPrice, positionSize, context);
+             ErrorType result = OrderManager::submitNewOrder(orderType, entryPrice, stopLoss, 0, cancelPrice, positionSize, context);
 
              if(result==NO_ERROR)  {
                  context.setInitialProfitTarget (NormalizeDouble(context.getPlannedEntry() + ((context.getPlannedEntry() - context.getStopLoss()) * (context.getMinProfitTarget())), Digits));
