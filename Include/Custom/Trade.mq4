@@ -14,7 +14,7 @@
 
 class Trade {
 public: 
-    Trade();
+    Trade(int _lotDigits);
     ~Trade(); 
     void update(); 
     void setState(TradeState *aState); 
@@ -40,9 +40,12 @@ public:
     double getInitialProfitTarget() const; 
     void setActualClose (double close);
     double getActualClose() const;
+    void setLotDigits (int _lotDigits);
+    int getLotDigits() const;
     void addLogEntry(string entry, bool print);
     void printLog() const;
     void writeLogToFile(string filename, bool append) const;
+    void writeLogToHTML(string filename, bool append) const;
 
 private:
     TradeState* state;
@@ -56,6 +59,7 @@ private:
     double cancelPrice;
     double actualClose;
     double initialProfitTarget;
+    int lotDigits;
     string log[1000];
     int logSize;      
     double positionSize;
@@ -65,7 +69,8 @@ private:
 
 const int Trade::OFFSET = (-7) *60*60;
 
-Trade::Trade() {
+Trade::Trade(int _lotDigits) {
+    this.lotDigits = lotDigits;
     this.state=NULL;
     this.orderTicket=-1;
     this.actualEntry=-1;
@@ -86,6 +91,17 @@ Trade::Trade() {
             IntegerToString(TimeHour(TimeCurrent()+OFFSET), 2, '0')+ ":" +
             IntegerToString(TimeMinute(TimeCurrent()+OFFSET), 2, '0')+ ":" +
             IntegerToString(TimeSeconds(TimeCurrent()+OFFSET), 2, '0');
+            
+    if (!IsTesting()) {
+        string filename = Symbol() + "_" + TimeToStr(TimeCurrent(), TIME_DATE);
+        int filehandle=FileOpen(filename, FILE_WRITE | FILE_READ | FILE_TXT);
+        if(filehandle!=INVALID_HANDLE) {
+            FileSeek(filehandle, 0, SEEK_END);
+            FileWrite(filehandle, "****Trade: ", this.id, " ****");
+            FileClose(filehandle);
+        }
+        else Print("Operation FileOpen failed, error ",GetLastError());
+    }
 }
 
 Trade::~Trade() {
@@ -100,6 +116,18 @@ void Trade::update() {
 void Trade::addLogEntry(string entry, bool print) {
     this.log[logSize] = TimeToStr(TimeCurrent()+OFFSET, TIME_DATE | TIME_SECONDS) + ": " + entry;
     logSize++;
+    
+    if (!IsTesting()) {
+        //write to file
+        string filename = Symbol() + "_" + TimeToStr(TimeCurrent(), TIME_DATE);
+        int filehandle=FileOpen(filename, FILE_WRITE | FILE_READ | FILE_TXT);
+        if(filehandle!=INVALID_HANDLE) {
+            FileSeek(filehandle, 0, SEEK_END);
+            FileWrite(filehandle, TimeToStr(TimeCurrent()+OFFSET, TIME_DATE | TIME_SECONDS) + ": " + entry);
+            FileClose(filehandle);
+        }
+        else Print("Operation FileOpen failed, error ",GetLastError());
+    }
     if (print) 
         Print(TimeToStr(TimeCurrent(), TIME_DATE | TIME_SECONDS) + ": TradeID: " + this.id + " " + entry);
 }
@@ -127,6 +155,30 @@ void Trade::writeLogToFile(string filename, bool append) const {
         for (int i = 0; i < logSize; ++i) {
             FileWrite(filehandle, log[i]);
         }
+        FileClose(filehandle);
+    }
+    else Print("Operation FileOpen failed, error ",GetLastError());
+}
+
+void Trade::writeLogToHTML(string filename, bool append) const {
+    ResetLastError();
+    int openFlags;
+    if (append)
+        openFlags = FILE_WRITE | FILE_READ | FILE_TXT;
+    else 
+        openFlags = FILE_WRITE | FILE_TXT;
+    
+    int filehandle=FileOpen(filename, openFlags);
+    if (append)
+        FileSeek(filehandle, 0, SEEK_END);
+    
+    if(filehandle!=INVALID_HANDLE) {
+        FileWrite(filehandle, "<b>****Trade: ", this.id, " **** </b>");
+        FileWrite(filehandle, "<ul>");
+        for (int i = 0; i < logSize; ++i) {
+            FileWrite(filehandle, "<li>" + log[i] + "</li>");
+        }
+        FileWrite(filehandle, "</ul>");
         FileClose(filehandle);
     }
     else Print("Operation FileOpen failed, error ",GetLastError());
@@ -219,3 +271,12 @@ void Trade::setActualClose (double close) {
 double Trade::getActualClose() const {
     return this.actualClose;
 }
+
+void Trade::setLotDigits (int _lotDigits) {
+    this.lotDigits = _lotDigits;
+}
+
+int Trade::getLotDigits() const {
+    return lotDigits;
+}
+    

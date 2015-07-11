@@ -13,7 +13,7 @@
 
 class ATRTrade: public Trade {
 public:
-   ATRTrade(double anATR,int _lengthIn1MBarsOfWaitingPeriod,double _percentageOfATRForMaxRisk,double _percentageOfATRForMaxVolatility,double _percentageOfATRForMinProfitTarget, int _rangeBufferInMicroPips);
+   ATRTrade(int _lotDigits, double anATR,int _lengthIn1MBarsOfWaitingPeriod,double _percentageOfATRForMaxRisk,double _percentageOfATRForMaxVolatility,double _percentageOfATRForMinProfitTarget, int _rangeBufferInMicroPips);
 
    double getATR() const;
    int getLengthIn1MBarsOfWaitingPeriod() const; 
@@ -32,7 +32,7 @@ private:
    int rangeBufferInMicroPips;
 };
       
-ATRTrade::ATRTrade(double _ATR,int _lengthIn1MBarsOfWaitingPeriod,double _percentageOfATRForMaxRisk,double _percentageOfATRForMaxVolatility,double _minProfitTarget, int _rangeBufferInMicroPips) : Trade() {
+ATRTrade::ATRTrade(int _lotDigits, double _ATR,int _lengthIn1MBarsOfWaitingPeriod,double _percentageOfATRForMaxRisk,double _percentageOfATRForMaxVolatility,double _minProfitTarget, int _rangeBufferInMicroPips) : Trade(_lotDigits) {
    this.atr=_ATR;
    this.lengthIn1MBarsOfWaitingPeriod=_lengthIn1MBarsOfWaitingPeriod;
    this.percentageOfATRForMaxRisk=_percentageOfATRForMaxRisk;
