@@ -108,7 +108,7 @@ void LowestLowReceivedEstablishingEligibilityRange::update()  {
             } else 
             //Range is above risk level, but below max volatility level. Current Ask price is less than entry level.  
             if (((rangeHigh-rangeLow)<((context.getPercentageOfATRForMaxVolatility()/100.00)*context.getATR())) && 
-                 (Ask < NormalizeDouble(rangeLow + context.getATR() * (context.getPercentageOfATRForMaxRisk()/100.00) + buffer, Digits))) {
+                 (Ask < rangeLow + context.getATR() * (context.getPercentageOfATRForMaxRisk()/100.00) + buffer)) {
                 
                 //write to log
                 context.addLogEntry("Range (" + IntegerToString(rangePips) + " micro pips) is greater than max risk " + DoubleToString(context.getPercentageOfATRForMaxRisk(), 2) +  
@@ -121,44 +121,50 @@ void LowestLowReceivedEstablishingEligibilityRange::update()  {
                 nextState = new StopBuyOrderOpened(context);
              }
              
-             int riskPips = (int) (MathAbs(stopLoss - entryPrice) * factor);
-             double riskCapital = AccountBalance() * 0.0075;
-             positionSize = NormalizeDouble(OrderManager::getLotSize(riskCapital, riskPips),context.getLotDigits());
-             
-             context.addLogEntry("AccountBalance: $" + DoubleToString(AccountBalance(), 2) + "; Risk Capital: $" + DoubleToString(riskCapital, 2) + "; Risk pips: " + DoubleToString(riskPips, 2) + " micro pips; Position Size: " + DoubleToString(positionSize, 2) + " lots; Pip value: " + DoubleToString(OrderManager::getPipValue(),Digits), true);
-             
-             //place Order
-             ErrorType result = OrderManager::submitNewOrder(orderType, entryPrice, stopLoss, 0, cancelPrice, positionSize, context);
-             
-             if(result==NO_ERROR)  {
-                 context.setInitialProfitTarget (NormalizeDouble(context.getPlannedEntry() + ((context.getPlannedEntry() - context.getStopLoss()) * (context.getMinProfitTarget())), Digits));
-                 context.setState(nextState);
-                 context.addLogEntry("Order successfully placed. Initial Profit target is: " + DoubleToString(context.getInitialProfitTarget(), Digits) + " (" + IntegerToString((int) (MathAbs(context.getInitialProfitTarget() - context.getPlannedEntry()) * factor)) + " micro pips)" + " Risk is: " + IntegerToString((int) riskPips) + " micro pips" , true);
-                 delete GetPointer(this);
-                 return;
-             }
-            if((result==RETRIABLE_ERROR) && (context.getOrderTicket()==-1))  {
-                 context.addLogEntry("Order entry failed. Error code: " + IntegerToString(GetLastError()) + ". Will re-try at next tick", true);
-                 delete nextState;
-                 return;
-            }
+             //only place order if entryPrice was calculated. I.e., if any of the three previous if/else cases was exercised. 
+             if (entryPrice != 0.0) {
+                int riskPips = (int) (MathAbs(stopLoss - entryPrice) * factor);
+                double riskCapital = AccountBalance() * 0.0075;
+                positionSize = NormalizeDouble(OrderManager::getLotSize(riskCapital, riskPips),context.getLotDigits());
+                
+                context.addLogEntry("AccountBalance: $" + DoubleToString(AccountBalance(), 2) + "; Risk Capital: $" + DoubleToString(riskCapital, 2) + "; Risk pips: " + DoubleToString(riskPips, 2) + " micro pips; Position Size: " + DoubleToString(positionSize, 2) + " lots; Pip value: " + DoubleToString(OrderManager::getPipValue(),Digits), true);
+                
+                //place Order
+                ErrorType result = OrderManager::submitNewOrder(orderType, entryPrice, stopLoss, 0, cancelPrice, positionSize, context);
+                
+                context.setStartingBalance(AccountBalance());
+                context.setOrderPlacedDate(TimeCurrent());
+                
+                if(result==NO_ERROR)  {
+                    context.setInitialProfitTarget (NormalizeDouble(context.getPlannedEntry() + ((context.getPlannedEntry() - context.getStopLoss()) * (context.getMinProfitTarget())), Digits));
+                    context.setState(nextState);
+                    context.addLogEntry("Order successfully placed. Initial Profit target is: " + DoubleToString(context.getInitialProfitTarget(), Digits) + " (" + IntegerToString((int) (MathAbs(context.getInitialProfitTarget() - context.getPlannedEntry()) * factor)) + " micro pips)" + " Risk is: " + IntegerToString((int) riskPips) + " micro pips" , true);
+                    delete GetPointer(this);
+                    return;
+                }
+               if((result==RETRIABLE_ERROR) && (context.getOrderTicket()==-1))  {
+                    context.addLogEntry("Order entry failed. Error code: " + IntegerToString(GetLastError()) + ". Will re-try at next tick", true);
+                    delete nextState;
+                    return;
+               }
 
-            //this should never happen...
-            if((context.getOrderTicket()!=-1) && (RETRIABLE_ERROR || NON_RETRIABLE_ERROR))  {
-                 context.addLogEntry("Error ocured but order is still open. Error code: " + IntegerToString(GetLastError()) + ". Continue with trade. Initial Profit target is: " + DoubleToString(context.getInitialProfitTarget(), Digits) + " (" + IntegerToString((int) (MathAbs(context.getInitialProfitTarget() - context.getPlannedEntry()) * factor)) + " micro pips)" + " Risk is: " + IntegerToString((int) riskPips) + " micro pips" , true);
-                 context.setInitialProfitTarget (NormalizeDouble(context.getPlannedEntry() + ((context.getPlannedEntry() - context.getStopLoss()) * ( context.getMinProfitTarget())), Digits));
-                 context.setState(nextState);
-                 delete GetPointer(this);
-                 return;
-              }
+               //this should never happen...
+               if((context.getOrderTicket()!=-1) && (RETRIABLE_ERROR || NON_RETRIABLE_ERROR))  {
+                    context.addLogEntry("Error ocured but order is still open. Error code: " + IntegerToString(GetLastError()) + ". Continue with trade. Initial Profit target is: " + DoubleToString(context.getInitialProfitTarget(), Digits) + " (" + IntegerToString((int) (MathAbs(context.getInitialProfitTarget() - context.getPlannedEntry()) * factor)) + " micro pips)" + " Risk is: " + IntegerToString((int) riskPips) + " micro pips" , true);
+                    context.setInitialProfitTarget (NormalizeDouble(context.getPlannedEntry() + ((context.getPlannedEntry() - context.getStopLoss()) * ( context.getMinProfitTarget())), Digits));
+                    context.setState(nextState);
+                    delete GetPointer(this);
+                    return;
+                 }
 
-            if((result==NON_RETRIABLE_ERROR) && (context.getOrderTicket()==-1))  {
-               context.addLogEntry("Non-recoverable error occurred. Errorcode: " + IntegerToString(GetLastError()) + ". Trade will be canceled", true);
-               context.setState(new TradeClosed(context));
-               delete nextState;
-               delete GetPointer(this);
-               return;
-            }
+               if((result==NON_RETRIABLE_ERROR) && (context.getOrderTicket()==-1))  {
+                  context.addLogEntry("Non-recoverable error occurred. Errorcode: " + IntegerToString(GetLastError()) + ". Trade will be canceled", true);
+                  context.setState(new TradeClosed(context));
+                  delete nextState;
+                  delete GetPointer(this);
+                  return;
+               }
+            } //end for if that checks if entryPrice is != 0.0
         } //end else (that checks for general trade eligibility)
      } //end if for range delay check
 } 

@@ -24,7 +24,12 @@ private:
 TradeClosed::TradeClosed(Trade* aContext) 
      {
       this.context = aContext;
+      context.setEndingBalance(AccountBalance());
+      context.setTradeClosedDate(TimeCurrent());
       context.addLogEntry("Trade is closed", true);
+      
+      context.writeLogToCSV();
+      
      }
 void TradeClosed::update() {
    /*if(OrderSelect(context.getOrderTicket(),SELECT_BY_TICKET,MODE_TRADES)) {

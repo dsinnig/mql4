@@ -24,7 +24,8 @@ input double maxRisk=10; //Max risk (in percent of ATR)
 input double maxVolatility=20; //Max volatility (in percent of ATR)
 input double minProfitTarget=4; //Min Profit Target (in factors of the risk e.g., 3 = 3* Risk)
 input int rangeBuffer=20; //Buffer in micropips for order opening and closing
-input int lotDigits=1; //0 = full lots, 1 = mini lots, 2 = micro lots, etc.
+input int lotDigits=1; //Lot size granularity (0 = full lots, 1 = mini lots, 2 = micro lots, etc).
+input string logFileName="tradeLog.csv"; //path and filename for CSV trade log
 
 //check for 1M charts
 //check for LimitOrderPercentage > StopOrderPercentage
@@ -55,8 +56,12 @@ void addTrade(Trade *aTrade)
 //+------------------------------------------------------------------+
 int OnInit() {
    
-   //delete log file
-   FileDelete("ATR_EA.log");
+   if (IsTesting()) {
+      //delete log file
+      FileDelete("ATR_EA.log");
+      FileDelete(logFileName);
+   }
+   
    
    //initialize trades array
    for(int i=0; i<maxNumberOfTrades;++i) {
@@ -132,7 +137,7 @@ void OnTick()
    if (currSession.tradingAllowed()) {
       if (updateResult == 1) {
          Print("Tradeable Highest High found: ", currSession.getHighestHigh(), " Time: ", currSession.getHighestHighTime());
-         Trade* trade = new ATRTrade(lotDigits, currSession.getATR(), lengthOfGracePeriod, maxRisk, maxVolatility, minProfitTarget, rangeBuffer);
+         Trade* trade = new ATRTrade(lotDigits, logFileName, currSession.getATR(), lengthOfGracePeriod, maxRisk, maxVolatility, minProfitTarget, rangeBuffer);
          trade.setState (new HighestHighReceivedEstablishingEligibilityRange(trade));
          addTrade(trade);
      }
@@ -141,7 +146,7 @@ void OnTick()
       if(updateResult==-1) 
         {
          Print("Tradeable Lowest Low found: ",currSession.getLowestLow()," Time: ",currSession.getLowestLowTime());
-         Trade* trade = new ATRTrade(lotDigits, currSession.getATR(), lengthOfGracePeriod, maxRisk, maxVolatility, minProfitTarget, rangeBuffer);
+         Trade* trade = new ATRTrade(lotDigits, logFileName, currSession.getATR(), lengthOfGracePeriod, maxRisk, maxVolatility, minProfitTarget, rangeBuffer);
          trade.setState (new LowestLowReceivedEstablishingEligibilityRange(trade));
          addTrade(trade);
         }

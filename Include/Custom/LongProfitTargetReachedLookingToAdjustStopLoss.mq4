@@ -56,6 +56,12 @@ void LongProfitTargetReachedLookingToAdjustStopLoss::update() {
       }
       context.addLogEntry("Stop loss triggered @" + DoubleToString(OrderClosePrice(), Digits) + " " + logMessage, true);
       context.addLogEntry("P/L of: $" + DoubleToString(OrderProfit(),2) + "; Commission: $" + DoubleToString(OrderCommission(),2) + "; Swap: $" + DoubleToString(OrderSwap(),2) + "; New Account balance: $" + DoubleToString(AccountBalance(),2), true);
+      
+      
+      context.setRealizedPL(OrderProfit());
+      context.setOrderCommission(OrderCommission());
+      context.setOrderSwap(OrderSwap());
+      
       context.setActualClose(OrderClosePrice());
       context.setState(new TradeClosed(context));
       delete GetPointer(this);

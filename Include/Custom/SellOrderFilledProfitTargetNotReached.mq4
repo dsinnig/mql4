@@ -23,6 +23,7 @@ private:
   
 SellOrderFilledProfitTargetNotReached::SellOrderFilledProfitTargetNotReached(ATRTrade* aContext) {
    this.context = aContext;
+   context.setOrderFilledDate(TimeCurrent());
 };
 
 void SellOrderFilledProfitTargetNotReached::update() {
@@ -40,6 +41,12 @@ void SellOrderFilledProfitTargetNotReached::update() {
       string logMessage = "Loss of " + DoubleToString(pips, 1) + " micro pips.";
       context.addLogEntry("Stop loss triggered @" + DoubleToString(OrderClosePrice(), Digits) + " " + logMessage, true);
       context.addLogEntry("P/L: $" + DoubleToString(OrderProfit(),2) + "; Commission: $" + DoubleToString(OrderCommission(),2) + "; Swap: $" + DoubleToString(OrderSwap(),2) + "; New Account balance: $" + DoubleToString(AccountBalance(),2), true);
+      
+      
+      context.setRealizedPL(OrderProfit());
+      context.setOrderCommission(OrderCommission());
+      context.setOrderSwap(OrderSwap());
+      
       context.setActualClose(OrderClosePrice());
       context.setState(new TradeClosed(context));
       delete GetPointer(this);

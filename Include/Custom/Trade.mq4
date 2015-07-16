@@ -14,7 +14,7 @@
 
 class Trade {
 public: 
-    Trade(int _lotDigits);
+    Trade(int _lotDigits, string _logFileName);
     ~Trade(); 
     void update(); 
     void setState(TradeState *aState); 
@@ -42,15 +42,42 @@ public:
     double getActualClose() const;
     void setLotDigits (int _lotDigits);
     int getLotDigits() const;
+    void setRealizedPL (double _realizedPL);
+    double getRealizedPL() const;
+    void setOrderCommission (double _commission);
+    double getOrderCommission() const ;
+    void setOrderSwap (double _swap);
+    double getOrderSwap() const;    
+    void setStartingBalance (double _balance);
+    double getStartingBalance() const;
+    void setEndingBalance (double _balance);
+    double getEndingBalance() const;   
+    void setTradeOpenedDate(datetime _date); 
+    datetime getTradeOpenedDate() const;
+    void setOrderPlacedDate(datetime _date); 
+    datetime getOrderPlacedDate() const;
+    void setOrderFilledDate(datetime _date); 
+    datetime getOrderFilledDate() const;
+    void setTradeClosedDate(datetime _date); 
+    datetime getTradeClosedDate() const;
+    
     void addLogEntry(string entry, bool print);
     void printLog() const;
     void writeLogToFile(string filename, bool append) const;
     void writeLogToHTML(string filename, bool append) const;
+    virtual void writeLogToCSV() const;
+
+
+protected: 
+    string logFileName;
+    string datetimeToExcelDate(datetime _date) const;
 
 private:
     TradeState* state;
     int orderTicket;
     string id;
+    double startingBalance;
+    double endingBalance;
     double plannedEntry;
     double actualEntry;
     double stopLoss;
@@ -59,18 +86,29 @@ private:
     double cancelPrice;
     double actualClose;
     double initialProfitTarget;
+    double positionSize;
     int lotDigits;
+    double realizedPL;
+    double commission;
+    double swap;
     string log[1000];
     int logSize;      
-    double positionSize;
+    datetime tradeOpenedDate;
+    datetime orderPlacedDate;
+    datetime orderFilledDate;
+    datetime tradeClosedDate;
+
     static const int OFFSET;
     
 };
 
 const int Trade::OFFSET = (-7) *60*60;
 
-Trade::Trade(int _lotDigits) {
-    this.lotDigits = lotDigits;
+Trade::Trade(int _lotDigits, string _logFileName) {
+    this.logFileName = _logFileName;
+    this.startingBalance = AccountBalance();
+    this.endingBalance = 0;
+    this.lotDigits = _lotDigits;
     this.state=NULL;
     this.orderTicket=-1;
     this.actualEntry=-1;
@@ -83,6 +121,14 @@ Trade::Trade(int _lotDigits) {
     this.originalStopLoss=0;
     this.positionSize=0;
     this.logSize=0;
+    this.realizedPL=0.0;
+    this.commission=0.0;
+    this.swap=0.0;
+    
+    this.tradeOpenedDate = TimeCurrent();
+    this.orderPlacedDate = -1;
+    this.orderFilledDate = -1;
+    this.tradeClosedDate = -1;
 
     this.id=Symbol() + 
             IntegerToString(TimeYear(TimeCurrent()+OFFSET))+ "-" +
@@ -184,6 +230,26 @@ void Trade::writeLogToHTML(string filename, bool append) const {
     else Print("Operation FileOpen failed, error ",GetLastError());
 }
 
+void Trade::writeLogToCSV() const {
+    ResetLastError();
+    int openFlags;
+    openFlags = FILE_WRITE | FILE_READ | FILE_CSV;
+    int filehandle=FileOpen(this.logFileName, openFlags, ",");
+  if(filehandle!=INVALID_HANDLE) {
+        FileSeek(filehandle, 0, SEEK_END); //go to the end of the file
+        
+        //if first entry, write column headers
+        if (FileTell(filehandle)==0) {
+            FileWrite(filehandle, "TRADE_ID", "SYMBOL", "TRADE_OPENED_DATE", "ORDER_PLACED_DATE", "STARTING_BALANCE", "PLANNED_ENTRY", "ORDER_FILLED_DATE", "ACTUAL_ENTRY", "INITIAL_STOP_LOSS", "REVISED_STOP_LOSS", "INITIAL_TAKE_PROFIT", "REVISED TAKE_PROFIT", "CANCEL_PRICE", "ACTUAL_CLOSE", "POSITION_SIZE", "REALIZED PL", "COMMISSION", "SWAP", "ENDING_BALANCE", "TRADE_CLOSED_DATE");
+        
+        }
+            
+        FileWrite(filehandle, this.id, Symbol(), datetimeToExcelDate(this.tradeOpenedDate), datetimeToExcelDate(this.orderPlacedDate), this.startingBalance, this.plannedEntry, datetimeToExcelDate(this.orderFilledDate), this.actualEntry, this.originalStopLoss, this.stopLoss, this.initialProfitTarget, this.takeProfit, this.cancelPrice, this.actualClose, this.positionSize, this.realizedPL, this.commission, this.swap, this.endingBalance, datetimeToExcelDate(this.tradeClosedDate));
+    }
+    FileClose(filehandle);
+}
+
+
 void Trade::setState(TradeState *aState) {
     this.state=aState;
 }
@@ -280,3 +346,82 @@ int Trade::getLotDigits() const {
     return lotDigits;
 }
     
+void Trade::setRealizedPL (double _realizedPL) {
+    this.realizedPL = _realizedPL;
+}
+double Trade::getRealizedPL() const {
+    return this.realizedPL;
+}
+
+void Trade::setOrderCommission (double _commission) {
+    this.commission = _commission;
+}
+double Trade::getOrderCommission() const {
+    return this.commission;
+}
+
+void Trade::setOrderSwap (double _swap) {
+    this.swap = _swap;
+}
+double Trade::getOrderSwap() const {
+    return this.swap;
+}
+
+void Trade::setStartingBalance (double _balance) {
+    this.startingBalance = _balance;
+}
+
+double Trade::getStartingBalance() const {
+    return startingBalance;
+}
+
+void Trade::setEndingBalance (double _balance) {
+    this.endingBalance = _balance;
+}
+
+double Trade::getEndingBalance() const {
+    return endingBalance;
+}
+
+void Trade::setTradeOpenedDate(datetime _date) {
+    this.tradeOpenedDate = _date;
+}
+
+datetime Trade::getTradeOpenedDate() const {
+    return this.tradeOpenedDate;
+}
+
+void Trade::setOrderPlacedDate(datetime _date) {
+    this.orderPlacedDate = _date;
+}
+
+datetime Trade::getOrderPlacedDate() const {
+    return this.orderPlacedDate;
+}
+
+void Trade::setOrderFilledDate(datetime _date) {
+    this.orderFilledDate = _date;
+}
+
+datetime Trade::getOrderFilledDate() const {
+    return this.orderFilledDate;
+}
+
+void Trade::setTradeClosedDate(datetime _date) {
+    this.tradeClosedDate = _date;
+}
+
+datetime Trade::getTradeClosedDate() const {
+    return this.tradeClosedDate;
+}
+
+string Trade::datetimeToExcelDate(datetime _date) const {
+    if (_date == -1) return "";
+    else return IntegerToString(TimeYear(_date),4,'0') + "-" + 
+                IntegerToString(TimeMonth(_date),2,'0') + "-" + 
+                IntegerToString(TimeDay(_date),2,'0') + " " + 
+                IntegerToString(TimeHour(_date),2,'0') + ":" + 
+                IntegerToString(TimeMinute(_date),2,'0') + ":" + 
+                IntegerToString(TimeSeconds(_date),2,'0');
+    
+}
