@@ -26,6 +26,7 @@ TradeClosed::TradeClosed(Trade* aContext)
       this.context = aContext;
       context.setEndingBalance(AccountBalance());
       context.setTradeClosedDate(TimeCurrent());
+      context.setSpreadOrderClose((int) MarketInfo(Symbol(),MODE_SPREAD));
       context.addLogEntry("Trade is closed", true);
       
       context.writeLogToCSV();

@@ -18,7 +18,7 @@
 
 Session *currSession;
 input int sundayLengthInHours=7; //Length of Sunday session in hours
-input int HHLL_Threshold=100; //Time in minutes after last HH / LL before a tradeable HH/LL can occur
+input int HHLL_Threshold=60; //Time in minutes after last HH / LL before a tradeable HH/LL can occur
 input int lengthOfGracePeriod=10; //Length in 1M bars of Grace Period after a tradeable HH/LL occured
 input double maxRisk=10; //Max risk (in percent of ATR)
 input double maxVolatility=20; //Max volatility (in percent of ATR)
@@ -137,7 +137,7 @@ void OnTick()
    if (currSession.tradingAllowed()) {
       if (updateResult == 1) {
          Print("Tradeable Highest High found: ", currSession.getHighestHigh(), " Time: ", currSession.getHighestHighTime());
-         Trade* trade = new ATRTrade(lotDigits, logFileName, currSession.getATR(), lengthOfGracePeriod, maxRisk, maxVolatility, minProfitTarget, rangeBuffer);
+         Trade* trade = new ATRTrade(lotDigits, logFileName, currSession.getHighestHigh(), currSession.getATR(), lengthOfGracePeriod, maxRisk, maxVolatility, minProfitTarget, rangeBuffer);
          trade.setState (new HighestHighReceivedEstablishingEligibilityRange(trade));
          addTrade(trade);
      }
@@ -146,7 +146,7 @@ void OnTick()
       if(updateResult==-1) 
         {
          Print("Tradeable Lowest Low found: ",currSession.getLowestLow()," Time: ",currSession.getLowestLowTime());
-         Trade* trade = new ATRTrade(lotDigits, logFileName, currSession.getATR(), lengthOfGracePeriod, maxRisk, maxVolatility, minProfitTarget, rangeBuffer);
+         Trade* trade = new ATRTrade(lotDigits, logFileName, currSession.getLowestLow(), currSession.getATR(), lengthOfGracePeriod, maxRisk, maxVolatility, minProfitTarget, rangeBuffer);
          trade.setState (new LowestLowReceivedEstablishingEligibilityRange(trade));
          addTrade(trade);
         }

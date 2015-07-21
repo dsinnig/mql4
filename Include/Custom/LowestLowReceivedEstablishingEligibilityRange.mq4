@@ -37,6 +37,7 @@ LowestLowReceivedEstablishingEligibilityRange::LowestLowReceivedEstablishingElig
     this.rangeHigh = -1;
     this.rangeLow=99999;
     this.barCounter=0;
+    context.setTradeType(LONG);
 
     context.addLogEntry("Lowest Low found - establishing eligibility range. Lowest low: " + DoubleToString(Close[0], Digits), true); 
 }
@@ -61,7 +62,9 @@ void LowestLowReceivedEstablishingEligibilityRange::update()  {
          int ATRPips = (int) (context.getATR() * factor); ///Works for 5 Digts pairs. Verify that calculation is valid for 3 Digits pairs
          
          context.addLogEntry("Range established at: " + IntegerToString(rangePips) + " microp pips. HH=" + DoubleToString(rangeHigh, Digits) + ", LL=" + DoubleToString(rangeLow, Digits), true);
-         
+         context.setRangeLow(rangeLow);
+         context.setRangeHigh(rangeHigh);
+         context.setRangePips(rangePips);
 
          //Range too large for limit or stop order
          if((rangeHigh-rangeLow)>((context.getPercentageOfATRForMaxVolatility()/100.00)*context.getATR()))  {
@@ -134,6 +137,7 @@ void LowestLowReceivedEstablishingEligibilityRange::update()  {
                 
                 context.setStartingBalance(AccountBalance());
                 context.setOrderPlacedDate(TimeCurrent());
+                context.setSpreadOrderOpen((int) MarketInfo(Symbol(),MODE_SPREAD));
                 
                 if(result==NO_ERROR)  {
                     context.setInitialProfitTarget (NormalizeDouble(context.getPlannedEntry() + ((context.getPlannedEntry() - context.getStopLoss()) * (context.getMinProfitTarget())), Digits));

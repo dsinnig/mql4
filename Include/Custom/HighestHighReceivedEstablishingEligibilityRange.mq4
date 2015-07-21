@@ -37,6 +37,7 @@ HighestHighReceivedEstablishingEligibilityRange::HighestHighReceivedEstablishing
     this.rangeHigh = -1;
     this.rangeLow=99999;
     this.barCounter=0;
+    context.setTradeType(SHORT);
 
     context.addLogEntry("Highest high found - establishing eligibility range. Highest high: " + DoubleToString(Close[0], Digits), true); 
 }
@@ -59,7 +60,9 @@ void HighestHighReceivedEstablishingEligibilityRange::update()  {
          int ATRPips = (int) (context.getATR() * factor); 
          
          context.addLogEntry("Range established at: " + IntegerToString(rangePips) + " micro pips. HH=" + DoubleToString(rangeHigh, Digits) + ", LL=" + DoubleToString(rangeLow, Digits), true);
-         
+         context.setRangeLow(rangeLow);
+         context.setRangeHigh(rangeHigh);
+         context.setRangePips(rangePips);
 
          //Range too large for limit or stop order
          if((rangeHigh-rangeLow)>((context.getPercentageOfATRForMaxVolatility()/100.00)*context.getATR()))  {
@@ -133,6 +136,7 @@ void HighestHighReceivedEstablishingEligibilityRange::update()  {
                 ErrorType result = OrderManager::submitNewOrder(orderType, entryPrice, stopLoss, 0, cancelPrice, positionSize, context);
                 context.setStartingBalance(AccountBalance());
                 context.setOrderPlacedDate(TimeCurrent());
+                context.setSpreadOrderOpen((int) MarketInfo(Symbol(),MODE_SPREAD));
                 
                
                 if(result==NO_ERROR)  {

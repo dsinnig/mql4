@@ -73,12 +73,45 @@ static ErrorType OrderManager::submitNewOrder(int orderType, double _entryPrice,
    switch (orderType) {
       case OP_BUY: {orderTypeStr = "BUY Market Order"; break;}
       case OP_SELL: {orderTypeStr = "SELl Market Order"; break;}
-      case OP_BUYLIMIT: {orderTypeStr = "BUY Limit Order"; break;}
-      case OP_SELLLIMIT: {orderTypeStr = "SELL Limit Order"; break;}
-      case OP_BUYSTOP: {orderTypeStr = "BUY Stop Order"; break;}
-      case OP_SELLSTOP: {orderTypeStr = "SELL Stop Order"; break;}
+      case OP_BUYLIMIT: {
+         orderTypeStr = "BUY Limit Order"; 
+         if (Ask - entryPrice < MarketInfo(Symbol(),MODE_STOPLEVEL)) {
+            trade.addLogEntry("Desired entry price of " + DoubleToString(entryPrice) + " is too close to current Ask of " + DoubleToString(Ask) + " Adjusting to " + DoubleToString(Ask - MarketInfo(Symbol(),MODE_STOPLEVEL)), true);
+            entryPrice = Ask - MarketInfo(Symbol(),MODE_STOPLEVEL);
+         }
+         break;
+      }
+      case OP_SELLLIMIT: {
+         orderTypeStr = "SELL Limit Order"; 
+         if (entryPrice - Bid < MarketInfo(Symbol(),MODE_STOPLEVEL)) {
+            trade.addLogEntry("Desired entry price of " + DoubleToString(entryPrice) + " is too close to current Bid of " + DoubleToString(Bid) + " Adjusting to " + DoubleToString(Bid + MarketInfo(Symbol(),MODE_STOPLEVEL)), true);
+            entryPrice = Bid + MarketInfo(Symbol(),MODE_STOPLEVEL);
+         }
+         break;
+      }
+      case OP_BUYSTOP: {
+         orderTypeStr = "BUY Stop Order"; 
+         //check if entryPrice is too close to market price and adjust accordingly
+         
+         if (entryPrice - Ask < MarketInfo(Symbol(),MODE_STOPLEVEL)) {
+            trade.addLogEntry("Desired entry price of " + DoubleToString(entryPrice) + " is too close to current Ask of " + DoubleToString(Ask) + " Adjusting to " + DoubleToString(Ask + MarketInfo(Symbol(),MODE_STOPLEVEL)), true);
+            entryPrice = Ask + MarketInfo(Symbol(),MODE_STOPLEVEL);
+         }
+         break;
+      }
+      case OP_SELLSTOP: {
+         orderTypeStr = "SELL Stop Order"; 
+         if (Bid - entryPrice < MarketInfo(Symbol(),MODE_STOPLEVEL)) {
+            trade.addLogEntry("Desired entry price of " + DoubleToString(entryPrice) + " is too close to current Bid of " + DoubleToString(Bid) + " Adjusting to " + DoubleToString(Bid - MarketInfo(Symbol(),MODE_STOPLEVEL)), true);
+            entryPrice = Bid - MarketInfo(Symbol(),MODE_STOPLEVEL);
+         }
+         break;
+      }
       default: {trade.addLogEntry("Invalid Order Type. Abort Trade", true); return NON_RETRIABLE_ERROR;}
    }
+   
+   
+   
    
    if (entryPrice != 0) entryPriceStr = "; entry price: " + DoubleToString(entryPrice, Digits);
    if (stopLoss != 0) stopLossStr = "; stop loss: " + DoubleToString(stopLoss, Digits);

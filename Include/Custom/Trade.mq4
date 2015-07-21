@@ -12,13 +12,22 @@
 
 #include "TradeState.mq4"
 
+enum TradeType { 
+   FLAT,
+   LONG, 
+   SHORT
+};
+
 class Trade {
 public: 
     Trade(int _lotDigits, string _logFileName);
     ~Trade(); 
     void update(); 
     void setState(TradeState *aState); 
-     
+        
+    void setTradeType(TradeType _type);
+    TradeType getTradeType() const;
+    
     void setOrderTicket(int aTicket); 
     int getOrderTicket() const; 
     string getId() const; 
@@ -60,6 +69,12 @@ public:
     datetime getOrderFilledDate() const;
     void setTradeClosedDate(datetime _date); 
     datetime getTradeClosedDate() const;
+    void setSpreadOrderOpen(int _spread);
+    int getSpreadOrderOpen() const;
+    void setSpreadOrderClose(int _spread);
+    int getSpreadOrderClose() const;
+    
+    
     
     void addLogEntry(string entry, bool print);
     void printLog() const;
@@ -69,11 +84,6 @@ public:
 
 
 protected: 
-    string logFileName;
-    string datetimeToExcelDate(datetime _date) const;
-
-private:
-    TradeState* state;
     int orderTicket;
     string id;
     double startingBalance;
@@ -91,21 +101,31 @@ private:
     double realizedPL;
     double commission;
     double swap;
-    string log[1000];
-    int logSize;      
+    int spreadOrderOpen;
+    int spreadOrderClose;
+    TradeType tradeType;
+        
     datetime tradeOpenedDate;
     datetime orderPlacedDate;
     datetime orderFilledDate;
     datetime tradeClosedDate;
-
-    static const int OFFSET;
     
+    string logFileName;
+    string datetimeToExcelDate(datetime _date) const;
+    string tradeTypeToString(TradeType _type) const;
+
+private:
+    TradeState* state;
+    string log[1000];
+    int logSize;  
+    static const int OFFSET;
 };
 
 const int Trade::OFFSET = (-7) *60*60;
 
 Trade::Trade(int _lotDigits, string _logFileName) {
     this.logFileName = _logFileName;
+    this.tradeType = FLAT;
     this.startingBalance = AccountBalance();
     this.endingBalance = 0;
     this.lotDigits = _lotDigits;
@@ -124,6 +144,8 @@ Trade::Trade(int _lotDigits, string _logFileName) {
     this.realizedPL=0.0;
     this.commission=0.0;
     this.swap=0.0;
+    this.spreadOrderOpen = -1;
+    this.spreadOrderClose = -1;
     
     this.tradeOpenedDate = TimeCurrent();
     this.orderPlacedDate = -1;
@@ -240,11 +262,11 @@ void Trade::writeLogToCSV() const {
         
         //if first entry, write column headers
         if (FileTell(filehandle)==0) {
-            FileWrite(filehandle, "TRADE_ID", "SYMBOL", "TRADE_OPENED_DATE", "ORDER_PLACED_DATE", "STARTING_BALANCE", "PLANNED_ENTRY", "ORDER_FILLED_DATE", "ACTUAL_ENTRY", "INITIAL_STOP_LOSS", "REVISED_STOP_LOSS", "INITIAL_TAKE_PROFIT", "REVISED TAKE_PROFIT", "CANCEL_PRICE", "ACTUAL_CLOSE", "POSITION_SIZE", "REALIZED PL", "COMMISSION", "SWAP", "ENDING_BALANCE", "TRADE_CLOSED_DATE");
+            FileWrite(filehandle, "TRADE_ID", "ORDER_TICKET", "TRADE_TYPE", "SYMBOL", "TRADE_OPENED_DATE", "ORDER_PLACED_DATE", "STARTING_BALANCE", "PLANNED_ENTRY", "ORDER_FILLED_DATE", "ACTUAL_ENTRY", "SPREAD_ORDER_OPEN", "INITIAL_STOP_LOSS", "REVISED_STOP_LOSS", "INITIAL_TAKE_PROFIT", "REVISED TAKE_PROFIT", "CANCEL_PRICE", "ACTUAL_CLOSE", "SPREAD_ORDER_CLOSE", "POSITION_SIZE", "REALIZED PL", "COMMISSION", "SWAP", "ENDING_BALANCE", "TRADE_CLOSED_DATE");
         
         }
             
-        FileWrite(filehandle, this.id, Symbol(), datetimeToExcelDate(this.tradeOpenedDate), datetimeToExcelDate(this.orderPlacedDate), this.startingBalance, this.plannedEntry, datetimeToExcelDate(this.orderFilledDate), this.actualEntry, this.originalStopLoss, this.stopLoss, this.initialProfitTarget, this.takeProfit, this.cancelPrice, this.actualClose, this.positionSize, this.realizedPL, this.commission, this.swap, this.endingBalance, datetimeToExcelDate(this.tradeClosedDate));
+        FileWrite(filehandle, this.id, this.orderTicket, tradeTypeToString(this.tradeType), Symbol(), datetimeToExcelDate(this.tradeOpenedDate), datetimeToExcelDate(this.orderPlacedDate), this.startingBalance, this.plannedEntry, datetimeToExcelDate(this.orderFilledDate), this.actualEntry, this.spreadOrderOpen, this.originalStopLoss, this.stopLoss, this.initialProfitTarget, this.takeProfit, this.cancelPrice, this.actualClose, this.spreadOrderClose, this.positionSize, this.realizedPL, this.commission, this.swap, this.endingBalance, datetimeToExcelDate(this.tradeClosedDate));
     }
     FileClose(filehandle);
 }
@@ -415,6 +437,29 @@ datetime Trade::getTradeClosedDate() const {
     return this.tradeClosedDate;
 }
 
+void Trade::setSpreadOrderOpen(int _spread) {
+    this.spreadOrderOpen = _spread;
+}
+
+int Trade::getSpreadOrderOpen() const {
+    return this.spreadOrderOpen;
+}
+
+void Trade::setSpreadOrderClose(int _spread) {
+    this.spreadOrderClose = _spread;
+}
+
+int Trade::getSpreadOrderClose() const {
+    return this.spreadOrderClose;
+}
+
+void Trade::setTradeType(TradeType _type) {
+    this.tradeType = _type;
+}
+TradeType Trade::getTradeType() const {
+    return this.tradeType;
+}
+
 string Trade::datetimeToExcelDate(datetime _date) const {
     if (_date == -1) return "";
     else return IntegerToString(TimeYear(_date),4,'0') + "-" + 
@@ -424,4 +469,13 @@ string Trade::datetimeToExcelDate(datetime _date) const {
                 IntegerToString(TimeMinute(_date),2,'0') + ":" + 
                 IntegerToString(TimeSeconds(_date),2,'0');
     
+}
+
+string Trade::tradeTypeToString(TradeType _type) const {
+    switch (_type) {
+        case LONG: return "LONG";
+        case SHORT: return "SHORT";
+        case FLAT: return "FLAT";
+    }
+    return "FLAT";
 }
